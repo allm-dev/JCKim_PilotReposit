@@ -35,6 +35,9 @@ AMyCharacter::AMyCharacter()
 	}
 
 	SetControlMode(EControlMode::DIABLO);
+
+	BoomLengthSpeed = 3.0f;
+	BoomRotationSpeed = 10.0f;
 }
 
 void AMyCharacter::SetControlMode(EControlMode NewControlMode)
@@ -45,8 +48,9 @@ void AMyCharacter::SetControlMode(EControlMode NewControlMode)
 	{
 		case EControlMode::GTA:
 			
-			CameraBoom->TargetArmLength = 450.f;
-			CameraBoom->SetRelativeRotation(FRotator::ZeroRotator);
+			//CameraBoom->TargetArmLength = 450.f;
+			//CameraBoom->SetRelativeRotation(FRotator::ZeroRotator);
+			BoomLengthTo = 450.0f;
 			CameraBoom->bUsePawnControlRotation = true;
 			CameraBoom->bInheritPitch = true;
 			CameraBoom->bInheritRoll=true;
@@ -66,8 +70,10 @@ void AMyCharacter::SetControlMode(EControlMode NewControlMode)
 
 		case EControlMode::DIABLO:
 
-			CameraBoom->TargetArmLength = 800.0f;
-			CameraBoom->SetRelativeRotation(FRotator(-45.0f,0,0));
+			//CameraBoom->TargetArmLength = 800.0f;
+			//CameraBoom->SetRelativeRotation(FRotator(-45.0f,0,0));
+			BoomLengthTo = 800.0f;
+			BoomRotationTo =  FRotator(-45,0,0);
 			CameraBoom->bUsePawnControlRotation = false;
 			CameraBoom->bInheritPitch = false;
 			CameraBoom->bInheritRoll = false;
@@ -98,6 +104,17 @@ void AMyCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	CameraBoom->TargetArmLength =FMath::FInterpTo(CameraBoom->TargetArmLength, BoomLengthTo, DeltaTime, BoomLengthSpeed);
+
+	switch(CurrentControlMode)
+	{
+		case EControlMode::DIABLO:
+			CameraBoom->SetRelativeRotation(FMath::RInterpTo(CameraBoom->GetRelativeRotation(), BoomRotationTo, DeltaTime, BoomRotationSpeed));
+		break;
+
+		default:
+		break;
+	}
 	switch(CurrentControlMode)
 	{
 		case EControlMode::DIABLO:
@@ -194,10 +211,12 @@ void AMyCharacter::ControlModeShift()
 	switch(CurrentControlMode)
 	{
 		case EControlMode::GTA:
+			GetController()->SetControlRotation(GetActorRotation());
 			SetControlMode(EControlMode::DIABLO);
 		break;
 
 		case EControlMode::DIABLO:
+			GetController()->SetControlRotation(CameraBoom->GetRelativeRotation());
 			SetControlMode(EControlMode::GTA);
 		break;
 	}
