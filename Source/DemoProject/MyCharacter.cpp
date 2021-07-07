@@ -38,6 +38,8 @@ AMyCharacter::AMyCharacter()
 
 	BoomLengthSpeed = 3.0f;
 	BoomRotationSpeed = 10.0f;
+
+	GetCharacterMovement()->JumpZVelocity = 800.0f;
 }
 
 void AMyCharacter::SetControlMode(EControlMode NewControlMode)
@@ -143,6 +145,7 @@ void AMyCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AMyCharacter::LookUp);
 
 	PlayerInputComponent->BindAction(TEXT("ControlModeShift"), EInputEvent::IE_Pressed, this, &AMyCharacter::ControlModeShift);
+	PlayerInputComponent->BindAction(TEXT("Jump"), IE_Pressed, this, &ACharacter::Jump);
 }
 
 void AMyCharacter::UpDown(float NewAxisVal)
