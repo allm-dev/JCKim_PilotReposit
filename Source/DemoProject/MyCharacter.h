@@ -68,6 +68,7 @@ private:
 
 	void AttackStartComboState();
 	void AttackEndComboState();
+	void AttackCheck();
 
 private:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category=Attack, Meta = (AllowPrivateAccess = true))
@@ -88,4 +89,10 @@ private:
 	//forward decl. use specific class info without including header files on module
 	UPROPERTY()
 	class UMyAnimInstance* MyAnim;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category=Attack, Meta=(AllowPrivateAccess = true))
+	float AttackRange;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category=Attack, Meta = (AllowPrivateAccess = true))
+	float AttackRadius;
 };

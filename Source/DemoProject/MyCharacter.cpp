@@ -3,6 +3,7 @@
 
 #include "MyCharacter.h"
 #include "MyAnimInstance.h"
+#include "DrawDebugHelpers.h"
 
 // Sets default values
 AMyCharacter::AMyCharacter()
@@ -21,31 +22,45 @@ AMyCharacter::AMyCharacter()
 	CameraBoom->TargetArmLength = 400.0f;
 	CameraBoom->SetRelativeRotation(FRotator(-15,0,0));
 
+	//Skeletal mesh object ref
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh>SK_Cardboard(TEXT("/Game/InfinityBladeWarriors/Character/CompleteCharacters/SK_CharM_Cardboard.SK_CharM_Cardboard"));
 	if(SK_Cardboard.Succeeded())
 	{
 		GetMesh()->SetSkeletalMesh(SK_Cardboard.Object);
 	}
 
+	//skeletal mesh uses AnimInstance based BP
 	GetMesh()->SetAnimationMode(EAnimationMode::AnimationBlueprint);
 
+	//AnimInstanceClass ref
 	static ConstructorHelpers::FClassFinder<UAnimInstance> WARRIOR_ANIM(TEXT("/Game/Animations/WarriorAnimBP.WarriorAnimBP_C"));
 	if(WARRIOR_ANIM.Succeeded())
 	{
 		GetMesh()->SetAnimInstanceClass(WARRIOR_ANIM.Class);
 	}
 
+	//control mode default settings
 	SetControlMode(EControlMode::DIABLO);
 
+	//mode change camera movement rate default setting
 	BoomLengthSpeed = 3.0f;
 	BoomRotationSpeed = 10.0f;
 
+	//character movement comp , jumping speed setting
 	GetCharacterMovement()->JumpZVelocity = 800.0f;
 
+	//combo sys. default setting (idle state, max combo count, ready to new combo stage)
 	IsAttacking = false;
-
 	MaxCombo = 4;
 	AttackEndComboState();
+
+	//collision profile default setting
+	GetCapsuleComponent()->SetCollisionProfileName(TEXT("MyCharacter"));
+
+	//Attack attribute settings
+	AttackRadius = 50.0f;
+	AttackRange = 200.0f;
+
 }
 
 void AMyCharacter::SetControlMode(EControlMode NewControlMode)
@@ -165,6 +180,8 @@ void AMyCharacter::PostInitializeComponents()
 			MyAnim->JumpToAttackMontageSection(CurrentCombo);
 		}
 	});
+
+	MyAnim->OnAttackHitCheck.AddUObject(this, &AMyCharacter::AttackCheck);
 }
 
 // Called to bind functionality to input
@@ -314,6 +331,70 @@ void AMyCharacter::AttackEndComboState()
 	IsComboInputOn = false;
 	CanNextCombo = false;
 	CurrentCombo = 0;
+}
+
+void AMyCharacter::AttackCheck()
+{
+	FHitResult HitResult;
+	//collision trace query settings (tag name, complexity, ignore)
+	FCollisionQueryParams Params(NAME_None, false, this);
+	bool bResult = GetWorld()->SweepSingleByChannel(
+		//trace check 내 검출된 결과 데이터 struct
+		HitResult,
+		//start location of checking trace == actor now location
+		GetActorLocation(),
+		//end location of checking trace == forward vec of actor * 200
+		GetActorLocation()+GetActorForwardVector()*AttackRange,
+		//rotation of checker == default
+		FQuat::Identity,
+		//trace collision channel to use
+		ECollisionChannel::ECC_GameTraceChannel2,
+		//primitive object to use in collision check trace
+		FCollisionShape::MakeSphere(AttackRadius),
+		Params
+	);
+
+	//attack range collision trace debug drawing
+#if ENABLE_DRAW_DEBUG
+	//end of trace
+	FVector TraceVec = GetActorForwardVector()*AttackRange;
+	//middle point of trace
+	FVector Center = GetActorLocation() + TraceVec*0.5f;
+	//capsule whole height /2
+	float HalfHeight = AttackRange*0.5f + AttackRadius;
+	FQuat CapsuleRot = FRotationMatrix::MakeFromZ(TraceVec).ToQuat();
+	//충돌하면 그린 아니면 레드
+	FColor DrawColor = bResult ? FColor::Green : FColor::Red;
+	float DebugLifeTime = 5.0f;
+
+	DrawDebugCapsule(
+		GetWorld(),
+		Center,
+		HalfHeight,
+		AttackRadius,
+		CapsuleRot,
+		DrawColor,
+		false,
+		DebugLifeTime
+	);
+
+#endif
+	
+
+	//if hit something
+	if(bResult)
+	{
+		//if hit actor is valid (actor declaration is TWeak*)
+		if(HitResult.Actor.IsValid())
+		{
+			//log hit actor name
+			ABLOG(Warning, TEXT("Hit Actor Name : %s"), *HitResult.Actor->GetName());
+
+			//damage framework
+			FDamageEvent DamageEvent;
+			HitResult.Actor->TakeDamage(50.0f, DamageEvent, GetController(), this);
+		}
+	}
 }
 
 
