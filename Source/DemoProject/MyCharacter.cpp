@@ -2,6 +2,7 @@
 
 
 #include "MyCharacter.h"
+#include "MyAnimInstance.h"
 
 // Sets default values
 AMyCharacter::AMyCharacter()
@@ -40,6 +41,11 @@ AMyCharacter::AMyCharacter()
 	BoomRotationSpeed = 10.0f;
 
 	GetCharacterMovement()->JumpZVelocity = 800.0f;
+
+	IsAttacking = false;
+
+	MaxCombo = 4;
+	AttackEndComboState();
 }
 
 void AMyCharacter::SetControlMode(EControlMode NewControlMode)
@@ -134,18 +140,48 @@ void AMyCharacter::Tick(float DeltaTime)
 	}
 }
 
+void AMyCharacter::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	MyAnim = Cast<UMyAnimInstance>(GetMesh()->GetAnimInstance());
+
+	//cast fail alarm
+	MYCHECK(MyAnim != nullptr);
+
+	//delegate connection ... when montage of MyAnimInstance ends its play, call bind func  == callback
+	MyAnim->OnMontageEnded.AddDynamic(this, &AMyCharacter::OnAttackMontageEnded);
+
+	MyAnim->OnNextAttackCheck.AddLambda([this]()
+	{
+		ABLOG(Warning, TEXT("OnNextAttackCheck"));
+		//default == combo-disabled
+		CanNextCombo = false;
+
+		//if combo input existed, combo-enabled
+		if(IsComboInputOn)
+		{
+			AttackStartComboState();
+			MyAnim->JumpToAttackMontageSection(CurrentCombo);
+		}
+	});
+}
+
 // Called to bind functionality to input
 void AMyCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+	//axis mapping
 	PlayerInputComponent->BindAxis(TEXT("UpDown"), this, &AMyCharacter::UpDown);
 	PlayerInputComponent->BindAxis(TEXT("LeftRight"), this, &AMyCharacter::LeftRight);
 	PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AMyCharacter::Turn);
 	PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AMyCharacter::LookUp);
 
+	//action mapping
 	PlayerInputComponent->BindAction(TEXT("ControlModeShift"), EInputEvent::IE_Pressed, this, &AMyCharacter::ControlModeShift);
 	PlayerInputComponent->BindAction(TEXT("Jump"), IE_Pressed, this, &ACharacter::Jump);
+	PlayerInputComponent->BindAction(TEXT("Attack"), IE_Pressed, this, &AMyCharacter::Attack);
 }
 
 void AMyCharacter::UpDown(float NewAxisVal)
@@ -225,6 +261,60 @@ void AMyCharacter::ControlModeShift()
 	}
 }
 
+//Left-Click action key bound F.
+void AMyCharacter::Attack()
+{
+	//left click input when character state == attack, meaning combo is ongoing
+	if(IsAttacking)
+	{
+		//assertion if CurrentCombo count is not in range 1~4
+		MYCHECK(FMath::IsWithinInclusive<int32>(CurrentCombo, 1, MaxCombo));
+		// if there's next combo attack montage section.
+		if(CanNextCombo)
+		{
+			//combo allowance -> waits for OnNextAttackCheck callback to enable combo sys.
+			IsComboInputOn = true;
+		}
+	}
+	//left click input when character state == idle/run etc, meaning combo starting stage
+	else
+	{
+		//if CurrentCombo count is not on its starting point -> halt program
+		MYCHECK(CurrentCombo == 0);
+		AttackStartComboState();
+		MyAnim->PlayAttackMontage();
+		MyAnim->JumpToAttackMontageSection(CurrentCombo);
+		IsAttacking=true;		
+	}
+}
+
+void AMyCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	// attack false 인데 들어오면 안됨
+	MYCHECK(IsAttacking);
+	MYCHECK(CurrentCombo>0);
+	//release attack state
+	IsAttacking = false;
+	AttackEndComboState();
+}
+
+void AMyCharacter::AttackStartComboState()
+{
+	//OnNextAttackCheck callback timing에 true인 경우 콤보가 이어짐
+	CanNextCombo =	true;
+	IsComboInputOn = false;
+	//combo start stage should start within a certain range of numbers; 0<= x<= MaxCom-1
+	MYCHECK(FMath::IsWithinInclusive<int32>(CurrentCombo, 0, MaxCombo-1));
+	//clamping, always plus one to currentCombo variable, but stay its val between min and max range 1~4
+	CurrentCombo = FMath::Clamp<int32>(CurrentCombo+1, 1, MaxCombo);
+}
+
+void AMyCharacter::AttackEndComboState()
+{
+	IsComboInputOn = false;
+	CanNextCombo = false;
+	CurrentCombo = 0;
+}
 
 
 

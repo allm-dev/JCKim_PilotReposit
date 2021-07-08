@@ -11,3 +11,6 @@ DECLARE_LOG_CATEGORY_EXTERN (DemoProject, Log, All);
 #define ABLOG_S(Verbosity) UE_LOG(DemoProject, Verbosity, TEXT("%s"), *ABLOG_CALLINFO)
 // caller info + 내맘대로 로깅
 #define ABLOG(Verbosity, Format, ...) UE_LOG(DemoProject, Verbosity, TEXT("%s %s"), *ABLOG_CALLINFO, *FString::Printf(Format, ##__VA_ARGS__))
+
+// check assertion define macro func
+#define MYCHECK(Expr, ...) {if(!(Expr)) {ABLOG(Error, TEXT("ASSERTION : %s"), TEXT("'"#Expr"'")); return __VA_ARGS__; } }
