@@ -61,6 +61,21 @@ AMyCharacter::AMyCharacter()
 	AttackRadius = 50.0f;
 	AttackRange = 200.0f;
 
+	//Weapon socket settings
+	FName WeaponSocket(TEXT("hand_rSocket"));
+	//if any socket named as such was found
+	if(GetMesh()->DoesSocketExist(WeaponSocket))
+	{
+		Weapon = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WEAPON"));
+		// instancing prefab asset
+		static ConstructorHelpers::FObjectFinder<USkeletalMesh> SK_WEAPON(TEXT("/Game/InfinityBladeWeapons/Weapons/Blade/Swords/Blade_BlackKnight/SK_Blade_BlackKnight.SK_Blade_BlackKnight"));
+		if(SK_WEAPON.Succeeded())
+		{
+			Weapon->SetSkeletalMesh(SK_WEAPON.Object);
+		}
+
+		Weapon->SetupAttachment(GetMesh(), WeaponSocket);
+	}
 }
 
 void AMyCharacter::SetControlMode(EControlMode NewControlMode)
@@ -181,7 +196,26 @@ void AMyCharacter::PostInitializeComponents()
 		}
 	});
 
+	//delegate uses AddUObject to bind non-UFUNCTION funcs(non-serialized func binding)
 	MyAnim->OnAttackHitCheck.AddUObject(this, &AMyCharacter::AttackCheck);
+}
+
+float AMyCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+	AActor* DamageCauser)
+{
+	//superior func execution
+	float FinalDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	//log damage execution details
+	ABLOG(Warning, TEXT("Actor : %s took Damage %f"), *GetName(), FinalDamage);
+
+	if(FinalDamage > 0.0f)
+	{
+		//death trigger on
+		MyAnim->SetDeadAnim();
+		//no more collision
+		SetActorEnableCollision(false);
+	}
+	return FinalDamage;
 }
 
 // Called to bind functionality to input
@@ -309,6 +343,7 @@ void AMyCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted
 {
 	// attack false 인데 들어오면 안됨
 	MYCHECK(IsAttacking);
+	//AttackEnd 실행 여부 체크, if called, CurrentCombo count should be > 0
 	MYCHECK(CurrentCombo>0);
 	//release attack state
 	IsAttacking = false;

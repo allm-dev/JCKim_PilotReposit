@@ -28,8 +28,13 @@ public:
 	void JumpToAttackMontageSection(int32 NewSection);
 
 public:
+	//delegate to bind callbacks on specific timings of animations == executed by notify sys
 	FOnAttackHitCheckDelegate OnAttackHitCheck;
 	FOnNextAttackCheckDelegate OnNextAttackCheck;
+
+	//death anim trigger on
+	void SetDeadAnim() {IsDead=true;}
+	
 	
 
 private:
@@ -43,6 +48,7 @@ private:
 	UAnimMontage* AttackMontage;
 
 private:
+	//client?server?Multicast?
 	UFUNCTION()
 	void AnimNotify_AttackHitCheck();
 
@@ -50,6 +56,10 @@ private:
 	void AnimNotify_NextAttackCheck();
 
 	FName GetAttackMontageSectionName(int32 Section);
+
+	//death trigger
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Pawn, Meta=(AllowPrivateAccess=true))
+	bool IsDead;
 
 	
 };
