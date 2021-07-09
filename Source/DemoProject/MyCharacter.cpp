@@ -6,6 +6,8 @@
 #include "MyWeapon.h"
 #include "MyCharacterStatComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Components/WidgetComponent.h"
+#include "MyCharacterWidget.h"
 
 // Sets default values
 AMyCharacter::AMyCharacter()
@@ -16,14 +18,26 @@ AMyCharacter::AMyCharacter()
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CAMERABOOM"));
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("CAMERA"));
 	CharacterStat = CreateDefaultSubobject<UMyCharacterStatComponent>(TEXT("CHARACTERSTAT"));
+	HPBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HPBARWIDGET"));
 
 	CameraBoom->SetupAttachment(GetCapsuleComponent());
 	Camera->SetupAttachment(CameraBoom);
+	HPBarWidget->SetupAttachment(GetMesh());
 
 	GetMesh()->SetRelativeLocationAndRotation(FVector(0,0,-88),
 		FRotator(0,-90,0));
 	CameraBoom->TargetArmLength = 400.0f;
 	CameraBoom->SetRelativeRotation(FRotator(-15,0,0));
+	HPBarWidget->SetRelativeLocation(FVector(0,0,180));
+	//overlay screen ui mode
+	HPBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
+	
+	static ConstructorHelpers::FClassFinder<UUserWidget> UI_HUD(TEXT("/Game/UI/UI_HPBar.UI_HPBar_C"));
+	if(UI_HUD.Succeeded())
+	{
+		HPBarWidget->SetWidgetClass(UI_HUD.Class);
+		HPBarWidget->SetDrawSize(FVector2D(150,50));
+	}
 
 	//Skeletal mesh object ref
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh>SK_Cardboard(TEXT("/Game/InfinityBladeWarriors/Character/CompleteCharacters/SK_CharM_Cardboard.SK_CharM_Cardboard"));
@@ -215,6 +229,19 @@ void AMyCharacter::PostInitializeComponents()
 
 	//delegate uses AddUObject to bind non-UFUNCTION funcs(non-serialized func binding)
 	MyAnim->OnAttackHitCheck.AddUObject(this, &AMyCharacter::AttackCheck);
+
+	CharacterStat->OnHPIsZero.AddLambda([this]()
+	{
+		ABLOG(Warning, TEXT("OnHPIsZero"));
+		MyAnim->SetDeadAnim();
+		SetActorEnableCollision(false);
+	});
+
+	auto CharacterWidget = Cast<UMyCharacterWidget>(HPBarWidget->GetUserWidgetObject());
+	if(nullptr != CharacterWidget)
+	{
+		CharacterWidget->BindCharacterStat(CharacterStat);
+	}
 }
 
 float AMyCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
@@ -225,13 +252,7 @@ float AMyCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEve
 	//log damage execution details
 	ABLOG(Warning, TEXT("Actor : %s took Damage %f"), *GetName(), FinalDamage);
 
-	if(FinalDamage > 0.0f)
-	{
-		//death trigger on
-		MyAnim->SetDeadAnim();
-		//no more collision
-		SetActorEnableCollision(false);
-	}
+	CharacterStat->SetDamage(FinalDamage);
 	return FinalDamage;
 }
 
@@ -444,7 +465,7 @@ void AMyCharacter::AttackCheck()
 
 			//damage framework
 			FDamageEvent DamageEvent;
-			HitResult.Actor->TakeDamage(50.0f, DamageEvent, GetController(), this);
+			HitResult.Actor->TakeDamage(CharacterStat->GetAttack(), DamageEvent, GetController(), this);
 		}
 	}
 }

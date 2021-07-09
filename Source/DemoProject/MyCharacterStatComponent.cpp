@@ -41,7 +41,7 @@ void UMyCharacterStatComponent::SetNewLevel(int32 NewLevel)
 	if(CurrentStatData != nullptr)
 	{
 		Level = NewLevel;
-		CurrentHP = CurrentStatData->MaxHP;		
+		SetHP(CurrentStatData->MaxHP);
 	}
 	else
 	{
@@ -52,12 +52,26 @@ void UMyCharacterStatComponent::SetNewLevel(int32 NewLevel)
 void UMyCharacterStatComponent::SetDamage(float NewDamage)
 {
 	MYCHECK(CurrentStatData !=nullptr);
-	CurrentHP = FMath::Clamp<float>(CurrentHP - NewDamage, 0.0f, CurrentStatData->MaxHP);
-	if(CurrentHP <= 0.0f)
+	SetHP(FMath::Clamp<float>(CurrentHP-NewDamage, 0.0f, CurrentStatData->MaxHP));
+}
+
+void UMyCharacterStatComponent::SetHP(float NewHP)
+{
+	CurrentHP = NewHP;
+	OnHPChanged.Broadcast();
+	//float epsilon
+	if(CurrentHP< KINDA_SMALL_NUMBER)
 	{
-		//캐릭터에 알려주기
+		CurrentHP =0.0f;
 		OnHPIsZero.Broadcast();
 	}
+}
+
+float UMyCharacterStatComponent::GetHPRatio()
+{
+	MYCHECK(CurrentStatData !=nullptr, 0.0f);
+
+	return (CurrentStatData->MaxHP < KINDA_SMALL_NUMBER) ? 0.0f : (CurrentHP/CurrentStatData->MaxHP);
 }
 
 float UMyCharacterStatComponent::GetAttack()
