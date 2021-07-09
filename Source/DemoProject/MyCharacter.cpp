@@ -3,16 +3,19 @@
 
 #include "MyCharacter.h"
 #include "MyAnimInstance.h"
+#include "MyWeapon.h"
+#include "MyCharacterStatComponent.h"
 #include "DrawDebugHelpers.h"
 
 // Sets default values
 AMyCharacter::AMyCharacter()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CAMERABOOM"));
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("CAMERA"));
+	CharacterStat = CreateDefaultSubobject<UMyCharacterStatComponent>(TEXT("CHARACTERSTAT"));
 
 	CameraBoom->SetupAttachment(GetCapsuleComponent());
 	Camera->SetupAttachment(CameraBoom);
@@ -61,7 +64,8 @@ AMyCharacter::AMyCharacter()
 	AttackRadius = 50.0f;
 	AttackRange = 200.0f;
 
-	//Weapon socket settings
+	/*
+	//Weapon equipment without actor separation
 	FName WeaponSocket(TEXT("hand_rSocket"));
 	//if any socket named as such was found
 	if(GetMesh()->DoesSocketExist(WeaponSocket))
@@ -76,6 +80,7 @@ AMyCharacter::AMyCharacter()
 
 		Weapon->SetupAttachment(GetMesh(), WeaponSocket);
 	}
+	*/
 }
 
 void AMyCharacter::SetControlMode(EControlMode NewControlMode)
@@ -134,7 +139,19 @@ void AMyCharacter::SetControlMode(EControlMode NewControlMode)
 void AMyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
+}
+
+void AMyCharacter::SetWeapon(AMyWeapon* NewWeapon)
+{
+	MYCHECK(nullptr != NewWeapon && nullptr == CurrentWeapon);
+	//weapon equipment as an independent actor
+	FName WeaponSocket(TEXT("hand_rSocket"));
+	if(nullptr!= NewWeapon)
+	{
+		NewWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocket);
+		NewWeapon->SetOwner(this);
+		CurrentWeapon = NewWeapon;
+	}
 }
 
 // Called every frame

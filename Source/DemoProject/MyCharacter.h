@@ -48,8 +48,17 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	bool CanSetWeapon();
+	void SetWeapon(class AMyWeapon* NewWeapon);
+
+	UPROPERTY(VisibleAnywhere, Category=Weapon)
+	class AMyWeapon* CurrentWeapon;
+
 	UPROPERTY(VisibleAnywhere, Category=Weapon)
 	USkeletalMeshComponent* Weapon;
+
+	UPROPERTY(VisibleAnywhere,Category= Stat)
+	class UMyCharacterStatComponent* CharacterStat;
 
 	UPROPERTY(VisibleAnywhere, Category=Camera)
 	USpringArmComponent* CameraBoom;
@@ -100,3 +109,8 @@ private:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category=Attack, Meta = (AllowPrivateAccess = true))
 	float AttackRadius;
 };
+
+inline bool AMyCharacter::CanSetWeapon()
+{
+	return (nullptr== CurrentWeapon);
+}
