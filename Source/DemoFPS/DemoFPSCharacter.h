@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "DemoFPSCharacter.generated.h"
 
+class AWeapon;
 class UInputComponent;
 class USkeletalMeshComponent;
 class USceneComponent;
@@ -23,13 +24,14 @@ class ADemoFPSCharacter : public ACharacter
 	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
 	USkeletalMeshComponent* Mesh1P;
 
-	/** Gun mesh: 1st person view (seen only by self) */
-	UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
-	USkeletalMeshComponent* FP_Gun;
+	UPROPERTY(EditAnywhere, Category=Weapon,meta = (AllowPrivateAccess = "true"))
+	TArray<AWeapon*> WeaponInventory;
 
-	/** Location on gun mesh where projectiles should spawn. */
-	UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
-	USceneComponent* FP_MuzzleLocation;
+	UPROPERTY(VisibleAnywhere, Category=Weapon,meta = (AllowPrivateAccess = "true"))
+	int32 MaxWeaponSlots;
+
+	UPROPERTY(EditAnywhere, Category = Weapon,meta = (AllowPrivateAccess = "true"))
+	AWeapon* CurrentWeapon;
 
 	/** First person camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
@@ -38,11 +40,32 @@ class ADemoFPSCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* AimCamera;
 
+	UPROPERTY(EditDefaultsOnly, Category = Weapon, meta = (AllowPrivateAccess = true))
+	TSubclassOf<AWeapon> DefaultGunClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = Weapon, meta = (AllowPrivateAccess = true))
+	TSubclassOf<AWeapon> DefaultGunClass2;
+
+	UPROPERTY(EditDefaultsOnly, Category = Weapon, meta = (AllowPrivateAccess = true))
+	TSubclassOf<AWeapon> DefaultGunClass3;
+
+	UPROPERTY(EditAnywhere, Category = AmmoCount, meta = (AllowPrivateAccess = true))
+	int32 Ammo0Count;
+
+	UPROPERTY(EditAnywhere, Category = AmmoCount, meta = (AllowPrivateAccess = true))
+	int32 Ammo1Count;
+
+	UPROPERTY(EditAnywhere, Category = AmmoCount, meta = (AllowPrivateAccess = true))
+	int32 Ammo2Count;
+	
+
 public:
 	ADemoFPSCharacter();
 
 protected:
 	virtual void BeginPlay();
+	virtual void PostInitializeComponents() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
@@ -53,14 +76,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseLookUpRate;
 
-	/** Gun muzzle's offset from the characters location */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
 	FVector GunOffset;
 
-	/** Projectile class to spawn */
 	UPROPERTY(EditDefaultsOnly, Category=Projectile)
-	TSubclassOf<class ADemoFPSProjectile> ProjectileClass;
-
+	TSubclassOf<class AGrenade> BombClass;
+	
 	/** Sound to play each time we fire */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
 	USoundBase* FireSound;
@@ -69,19 +90,24 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
 	UAnimMontage* FireAnimation;
 
+	void SetWeapon(AWeapon* NewWeapon);
+
 protected:
 	
 	/** Fires a projectile. */
 	void OnFire();
-
-	/** Resets HMD orientation and position in VR. */
-	void OnResetVR();
 
 	/** Handles moving forward/backward */
 	void MoveForward(float Val);
 
 	/** Handles stafing movement, left and right */
 	void MoveRight(float Val);
+
+	void Reload();
+
+	void EquipSlot1();
+	void EquipSlot2();
+	void EquipSlot3();
 
 	/**
 	 * Called via input to turn at a given rate.
@@ -97,6 +123,8 @@ protected:
 
 	void AimOn();
 	void AimOff();
+
+	void OnBomb();
 
 private:
 
