@@ -21,6 +21,10 @@ class ADemoFPSProjectile : public AActor
 	/** Projectile movement component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 	UProjectileMovementComponent* ProjectileMovement;
+	
+	UPROPERTY(EditDefaultsOnly, Category = Damage, meta = (AllowPrivateAccess = true))
+	int32 Damage;
+
 
 public:
 	ADemoFPSProjectile();

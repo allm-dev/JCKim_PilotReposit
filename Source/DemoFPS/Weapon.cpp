@@ -5,26 +5,26 @@
 #include "DemoFPSProjectile.h"
 #include "DemoFPSCharacter.h"
 
+
+
 // Sets default values
 AWeapon::AWeapon()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-
 	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FP_Gun"));
 	Mesh->SetOnlyOwnerSee(false);			
 	Mesh->bCastDynamicShadow = false;
 	Mesh->CastShadow = false;
-	Mesh->SetOnlyOwnerSee(true);
 	RootComponent = Mesh;
 
 	Muzzle = CreateDefaultSubobject<USceneComponent>(TEXT("MuzzleLocation"));
 	Muzzle->SetupAttachment(Mesh);
 	Muzzle->SetRelativeLocation(FVector(0.0f, 60.0f, 11.0f));
-
+	
 	MaxAmmo =30;
 	CurrentAmmo = MaxAmmo;
 }
+
+
 
 bool AWeapon::FireGun()
 {
@@ -41,15 +41,16 @@ bool AWeapon::FireGun()
 			GunOwner->AddControllerYawInput(FMath::RandRange(-1.00f, 1.00f));
 			
 			const FRotator SpawnRotation = GunOwner->GetControlRotation();
-			// MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position
 			const FVector SpawnLocation = Muzzle->GetComponentLocation();
 
-			//Set Spawn Collision Handling Override
 			FActorSpawnParameters ActorSpawnParams;
 			ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+			//오너 설정을 스폰과 동시에 할 수 있다...;;;
+			ActorSpawnParams.Owner = GunOwner;
 
 			// spawn the projectile at the muzzle
-			World->SpawnActor<ADemoFPSProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
+			auto Projectile = World->SpawnActor<ADemoFPSProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
+			CurrentAmmo--;
 
 			return true;
 		}

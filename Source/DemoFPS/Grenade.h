@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
 #include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Particles/ParticleSystemComponent.h"
-
 #include "Grenade.generated.h"
+
+DECLARE_DELEGATE_OneParam(OnGrenadeKillDelegate, int32)
 
 UCLASS()
 class DEMOFPS_API AGrenade : public AActor
@@ -47,13 +47,14 @@ public:
 	
 	UFUNCTION()
 	void OnExplosionEnd( UParticleSystemComponent* PS);
+
+	OnGrenadeKillDelegate OnGrenadeKill;; 
 protected:
-	// Called when the game starts or when spawned
+	UFUNCTION()
 	virtual void BeginPlay() override;
-
-	virtual void LifeSpanExpired() override;
 	
-
+	UFUNCTION()
+	virtual void LifeSpanExpired() override;
 
 };
 

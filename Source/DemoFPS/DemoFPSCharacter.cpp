@@ -9,7 +9,6 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/InputSettings.h"
-#include "HeadMountedDisplayFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "MotionControllerComponent.h"
 
@@ -79,9 +78,12 @@ ADemoFPSCharacter::ADemoFPSCharacter()
 	static ConstructorHelpers::FClassFinder<AWeapon> DefaultGunBP3(TEXT("/Game/FirstPersonCPP/Blueprints/Weapon3.Weapon3_C"));
 	DefaultGunClass3 = DefaultGunBP3.Class;
 
-	Ammo0Count =0;
-	Ammo1Count=0;
-	Ammo2Count=0;
+	Ammo0Count =30;
+	Ammo1Count=7;
+	Ammo2Count=10;
+	GrenadeCount =3;
+
+	HP =100;
 }
 
 void ADemoFPSCharacter::BeginPlay()
@@ -198,16 +200,61 @@ void ADemoFPSCharacter::SetWeapon(AWeapon* NewWeapon)
 	{
 		if(WeaponInventory[i]==CurrentWeapon)
 		{
-			CurrentWeapon->SetActorHiddenInGame(false);
 			CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
-			CurrentWeapon->SetActorLocation(GetActorLocation()+GetActorForwardVector()*200.0f);
 			CurrentWeapon->SetOwner(nullptr);
-			CurrentWeapon->SetLifeSpan(5.0f);
+			CurrentWeapon->Destroy();
+
 			CurrentWeapon = NewWeapon;
 			WeaponInventory[i] = NewWeapon;
 		}
 	}
 	
+}
+
+int32 ADemoFPSCharacter::GetAmmoCount() const
+{
+	int32 Res =0;
+	
+	if(CurrentWeapon != nullptr)
+	switch (CurrentWeapon->GetAmmoId())
+	{
+	case 0:
+		Res =Ammo0Count;
+		break;
+	case 1:
+		Res = Ammo1Count;
+		break;
+	case 2:
+		Res=Ammo2Count;
+		break;
+	default:
+		Res =0;
+		break;
+	}
+	
+	return Res;
+}
+
+void ADemoFPSCharacter::SetAmmoCountUp(int32 AmmoId)
+{
+	switch (AmmoId)
+	{
+		case 0:
+			Ammo0Count += FMath::RandRange(40,60);
+		break;
+		
+		case 1:
+			Ammo1Count += FMath::RandRange(10,20);
+		break;
+
+		case 2:
+			Ammo2Count += FMath::RandRange(15,25);
+		break;
+
+		default:
+			UE_LOG(LogTemp, Warning, TEXT("Unknown Ammo ID, Discarded"));
+			break;
+	}
 }
 
 void ADemoFPSCharacter::Reload()
@@ -265,6 +312,16 @@ void ADemoFPSCharacter::EquipSlot3()
 		CurrentWeapon->SetActorHiddenInGame(true);
 		CurrentWeapon = WeaponInventory[2];
 		CurrentWeapon->SetActorHiddenInGame(false);
+	}
+}
+
+void ADemoFPSCharacter::SetDamage(int32 NewDamage)
+{
+	HP -= NewDamage;
+	UE_LOG(LogTemp, Warning, TEXT("%s got %d damage"), *GetName(), NewDamage)
+	if(HP <= 0)
+	{
+		Destroy();
 	}
 }
 
@@ -326,20 +383,22 @@ void ADemoFPSCharacter::AimOn()
 	UE_LOG(LogTemp, Warning, TEXT("AimOn"));
 	FirstPersonCameraComponent->SetActive(false);
 	AimCamera->SetActive(true);
-
+	AimCamera->SetupAttachment(CurrentWeapon->GetMuzzle());
+	AimCamera->SetRelativeLocationAndRotation(FVector(100,0,0),FRotator::ZeroRotator);
 }
 
 void ADemoFPSCharacter::AimOff()
 {
 	UE_LOG(LogTemp, Warning, TEXT("AimOff"));
 	FirstPersonCameraComponent->SetActive(true);
+	AimCamera->SetupAttachment(FirstPersonCameraComponent);
+	AimCamera->SetRelativeLocation(GunOffset);
 	AimCamera->SetActive(false);
 }
 
 void ADemoFPSCharacter::OnBomb()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Bombing Engaged"));
-	if(BombClass != nullptr)
+	if(BombClass != nullptr && GrenadeCount >0)
 	{
 		UWorld* const World = GetWorld();
 		if (World != nullptr)
@@ -350,7 +409,11 @@ void ADemoFPSCharacter::OnBomb()
 			FActorSpawnParameters ActorSpawnParams;
 			ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 
-			World->SpawnActor<AGrenade>(BombClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
+			auto Grenade = World->SpawnActor<AGrenade>(BombClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
+			Grenade->SetOwner(this);
+			Grenade->OnGrenadeKill.BindUObject(this, &ADemoFPSCharacter::SetKillScoreUp);
+			GrenadeCount--;
+			UE_LOG(LogTemp, Warning, TEXT("Bombing Engaged"));
 		}
 	}
 }

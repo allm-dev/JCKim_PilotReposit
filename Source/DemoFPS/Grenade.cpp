@@ -78,8 +78,8 @@ void AGrenade::OnExplosion(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 		BlowDir.Normalize();
 		Casting->GetCapsuleComponent()->AddImpulse(BlowDir *1000.0f, NAME_None, true);
 		
-		UE_LOG(LogTemp, Warning, TEXT("Killed %s"), *OtherActor->GetName());
 		OtherActor->SetLifeSpan(0.5f);
+		OnGrenadeKill.Execute(1);
 	}
 	
 }

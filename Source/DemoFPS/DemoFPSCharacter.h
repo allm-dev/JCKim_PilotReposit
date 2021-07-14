@@ -57,8 +57,15 @@ class ADemoFPSCharacter : public ACharacter
 
 	UPROPERTY(EditAnywhere, Category = AmmoCount, meta = (AllowPrivateAccess = true))
 	int32 Ammo2Count;
-	
 
+	UPROPERTY(EditAnywhere, Category = AmmoCount, meta = (AllowPrivateAccess = true))
+	int32 GrenadeCount;
+
+	UPROPERTY(EditAnywhere, Category = KillCount, meta = (AllowPrivateAccess = true))
+	int32 KillScore;
+
+	UPROPERTY(EditAnywhere, Category = KillCount, meta = (AllowPrivateAccess = true))
+	int32 HP;
 public:
 	ADemoFPSCharacter();
 
@@ -90,7 +97,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
 	UAnimMontage* FireAnimation;
 
+	AWeapon* GetCurrentWeapon() const {return CurrentWeapon;}
 	void SetWeapon(AWeapon* NewWeapon);
+
+	int32 GetAmmoCount() const;
+
+	void SetAmmoCountUp(int32 AmmoId);
+	
+	int32 GetGrenadeCount() const {return GrenadeCount;}
+	void SetGrenadeCountUp() {GrenadeCount += FMath::RandRange(1,5);}
+	int32 GetKillScore() const {return KillScore;}
+
+	int32 GetHP() const {return HP;}
+	void SetHPUp(int32 NewHP) {HP += NewHP;}
+	
+	void SetDamage(int32 NewDamage);
+	void SetKillScoreUp(int32 NewKillScore) {KillScore += NewKillScore; UE_LOG(LogTemp, Warning, TEXT("Kill Score Up"));}
+
 
 protected:
 	

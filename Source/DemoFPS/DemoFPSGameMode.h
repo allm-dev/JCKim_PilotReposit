@@ -11,8 +11,26 @@ class ADemoFPSGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 
+protected:
+
+	UPROPERTY()
+	float RunTime;
+
+	UPROPERTY()
+	float MaxPlayTime;
+
+	UPROPERTY()
+	bool bGameOver;
+
 public:
 	ADemoFPSGameMode();
+
+	float GetRunTime() const {return RunTime;};
+
+	float GetRemainingTime() const {return MaxPlayTime - RunTime;}
+
+	UFUNCTION()
+	virtual void Tick(float DeltaSeconds) override;
 };
 
 

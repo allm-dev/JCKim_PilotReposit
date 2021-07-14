@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DemoFPSProjectile.h"
+
+#include "DemoFPSCharacter.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/SphereComponent.h"
 
@@ -27,6 +29,8 @@ ADemoFPSProjectile::ADemoFPSProjectile()
 	ProjectileMovement->bRotationFollowsVelocity = true;
 	ProjectileMovement->bShouldBounce = true;
 
+	Damage =30;
+
 	// Die after 3 seconds by default
 	InitialLifeSpan = 3.0f;
 }
@@ -38,5 +42,27 @@ void ADemoFPSProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor,
 		OtherComp->AddImpulseAtLocation(GetVelocity() * 100.0f, GetActorLocation());
 
 		Destroy();
+	}
+	else if(OtherActor != nullptr && OtherActor !=GetOwner())
+	{
+		auto OtherCharacter = Cast<ADemoFPSCharacter>(OtherActor);
+		if(OtherCharacter != nullptr)
+		{
+			FString OtherCharacterName = OtherCharacter->GetName();
+			OtherCharacter->SetDamage(Damage);
+
+			if(!IsValid(OtherCharacter))
+			{
+				auto MyOwner = GetOwner();
+				auto Killer =  Cast<ADemoFPSCharacter>(MyOwner);
+				if(Killer !=nullptr)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("GunShot Kill %s"), *OtherCharacterName);
+					Killer->SetKillScoreUp(1);
+				}
+			}
+			
+			Destroy();
+		}
 	}
 }

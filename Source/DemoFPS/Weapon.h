@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "Components/SphereComponent.h"
 #include "GameFramework/Actor.h"
 #include "Weapon.generated.h"
 
@@ -30,23 +32,35 @@ class DEMOFPS_API AWeapon : public AActor
 
 	UPROPERTY(EditDefaultsOnly, Category=Ammunition, Meta = (AllowPrivateAccess=true))
 	int32 AmmoId;
+
+	
 	
 public:	
 	AWeapon();
 
+	UFUNCTION()
+	USceneComponent* GetMuzzle() const {return Muzzle;}
+	
 	UFUNCTION()
 	bool FireGun();
 
 	UFUNCTION()
 	bool Reload(int32 NewAmmo);
 
-	inline int32 NeedAmmo() {return MaxAmmo - CurrentAmmo;};
+	UFUNCTION()
+	int32 GetCurrentAmmo() const {return CurrentAmmo;}
 
-	inline int32 GetAmmoId() {return AmmoId;}
+	UFUNCTION()
+	int32 GetMaxAmmo() const {return MaxAmmo;}
+
+
+	UFUNCTION()
+	int32 NeedAmmo() const {return MaxAmmo - CurrentAmmo;}
+
+	UFUNCTION()
+	int32 GetAmmoId() const {return AmmoId;}
 	
 protected:
 	virtual void BeginPlay() override;
-
-	
 
 };

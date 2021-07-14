@@ -6,6 +6,8 @@
 #include "GameFramework/HUD.h"
 #include "DemoFPSHUD.generated.h"
 
+
+
 UCLASS()
 class ADemoFPSHUD : public AHUD
 {
@@ -16,10 +18,14 @@ public:
 
 	/** Primary draw call for the HUD */
 	virtual void DrawHUD() override;
-
+	
 private:
 	/** Crosshair asset pointer */
 	class UTexture2D* CrosshairTex;
 
+	UPROPERTY()
+	UFont* HudFont;
+
 };
+
 
