@@ -33,6 +33,8 @@ class DEMOFPS_API AWeapon : public AActor
 	UPROPERTY(EditDefaultsOnly, Category=Ammunition, Meta = (AllowPrivateAccess=true))
 	int32 AmmoId;
 
+	UPROPERTY(EditDefaultsOnly, Category=Name, Meta = (AllowPrivateAcces=true))
+	FString Name;
 	
 	
 public:	
@@ -59,6 +61,9 @@ public:
 
 	UFUNCTION()
 	int32 GetAmmoId() const {return AmmoId;}
+
+	UFUNCTION()
+	FString GetName() const {return Name;}
 	
 protected:
 	virtual void BeginPlay() override;

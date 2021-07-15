@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DemoFPSCharacter.h"
+
+#include "DemoFPSHUD.h"
 #include "DemoFPSProjectile.h"
 #include "Grenade.h"
+#include "ItemRoot.h"
 #include "Weapon.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
@@ -11,6 +14,7 @@
 #include "GameFramework/InputSettings.h"
 #include "Kismet/GameplayStatics.h"
 #include "MotionControllerComponent.h"
+#include "MovieSceneTracksComponentTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
@@ -46,17 +50,6 @@ ADemoFPSCharacter::ADemoFPSCharacter()
 	WeaponInventory.Init(nullptr, MaxWeaponSlots);
 	CurrentWeapon= nullptr;
 	
-	/*
-	FP_Gun = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FP_Gun"));
-	FP_Gun->SetOnlyOwnerSee(false);			// otherwise won't be visible in the multiplayer
-	FP_Gun->bCastDynamicShadow = false;
-	FP_Gun->CastShadow = false;
-	FP_Gun->SetupAttachment(RootComponent);
-
-	FP_MuzzleLocation = CreateDefaultSubobject<USceneComponent>(TEXT("MuzzleLocation"));
-	FP_MuzzleLocation->SetupAttachment(FP_Gun);
-	FP_MuzzleLocation->SetRelativeLocation(FVector(0.2f, 48.4f, -10.6f));
-	*/
 	// Default offset from the character location for projectiles to spawn
 	GunOffset = FVector(100.0f, 0.0f, 10.0f);
 
@@ -167,6 +160,9 @@ void ADemoFPSCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	//장전
 	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &ADemoFPSCharacter::Reload);
 
+	//재시작
+	PlayerInputComponent->BindAction("Restart", IE_Pressed, this, &ADemoFPSCharacter::RestartGame).bExecuteWhenPaused =true;
+
 	// Bind movement events
 	PlayerInputComponent->BindAxis("MoveForward", this, &ADemoFPSCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ADemoFPSCharacter::MoveRight);
@@ -200,10 +196,15 @@ void ADemoFPSCharacter::SetWeapon(AWeapon* NewWeapon)
 	{
 		if(WeaponInventory[i]==CurrentWeapon)
 		{
+
+			int32 const PrevWeaponId = CurrentWeapon->GetAmmoId()+ 1;
 			CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
 			CurrentWeapon->SetOwner(nullptr);
 			CurrentWeapon->Destroy();
-
+			
+			UClass* SpawnClass = StaticLoadClass(AItemRoot::StaticClass(), nullptr, *FString::Printf(TEXT("/Game/FirstPersonCPP/Blueprints/Weapon%dRoot.Weapon%dRoot_C"), PrevWeaponId, PrevWeaponId));
+			GetWorld()->SpawnActor<AItemRoot>(SpawnClass, GetActorLocation()+GetActorForwardVector()*250, FRotator::ZeroRotator);
+			
 			CurrentWeapon = NewWeapon;
 			WeaponInventory[i] = NewWeapon;
 		}
@@ -315,9 +316,24 @@ void ADemoFPSCharacter::EquipSlot3()
 	}
 }
 
+void ADemoFPSCharacter::RestartGame()
+{
+	if(Cast<APlayerController>(GetController()) != nullptr)
+	{
+		auto const MyHUD = Cast<ADemoFPSHUD>(Cast<APlayerController>(GetController())->GetHUD());
+		if(MyHUD !=nullptr)
+		{
+			if(MyHUD->GetGameOver() == true)
+			{
+				UGameplayStatics::OpenLevel(GetWorld(), TEXT("FirstPersonExampleMap"));
+			}
+		}
+	}
+}
+
 void ADemoFPSCharacter::SetDamage(int32 NewDamage)
 {
-	HP -= NewDamage;
+	HP = FMath::Clamp<int32>(HP-NewDamage, 0 , 100);
 	UE_LOG(LogTemp, Warning, TEXT("%s got %d damage"), *GetName(), NewDamage)
 	if(HP <= 0)
 	{
@@ -383,15 +399,14 @@ void ADemoFPSCharacter::AimOn()
 	UE_LOG(LogTemp, Warning, TEXT("AimOn"));
 	FirstPersonCameraComponent->SetActive(false);
 	AimCamera->SetActive(true);
-	AimCamera->SetupAttachment(CurrentWeapon->GetMuzzle());
-	AimCamera->SetRelativeLocationAndRotation(FVector(100,0,0),FRotator::ZeroRotator);
+	AimCamera->AttachToComponent(CurrentWeapon->GetMuzzle(), FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true));
 }
 
 void ADemoFPSCharacter::AimOff()
 {
 	UE_LOG(LogTemp, Warning, TEXT("AimOff"));
 	FirstPersonCameraComponent->SetActive(true);
-	AimCamera->SetupAttachment(FirstPersonCameraComponent);
+	AimCamera->AttachToComponent(FirstPersonCameraComponent, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true));
 	AimCamera->SetRelativeLocation(GunOffset);
 	AimCamera->SetActive(false);
 }

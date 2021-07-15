@@ -2,6 +2,7 @@
 
 #include "DemoFPSGameMode.h"
 #include "DemoFPSHUD.h"
+#include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 
 ADemoFPSGameMode::ADemoFPSGameMode()
@@ -20,9 +21,26 @@ ADemoFPSGameMode::ADemoFPSGameMode()
 	MaxPlayTime = 60.0f;
 }
 
+void ADemoFPSGameMode::SetGamePaused (bool b)
+{
+	APlayerController* PlayerCt = GetWorld()->GetFirstPlayerController();
+	if(PlayerCt != nullptr)
+	{
+		OnGameOver.Execute(true);
+		PlayerCt->SetPause(b);
+	}
+}
+
 void ADemoFPSGameMode::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	
-	RunTime += DeltaSeconds;
+	if(RunTime >= MaxPlayTime)
+	{
+		SetGamePaused(true);
+	}
+	else
+	{
+		RunTime += DeltaSeconds;
+	}
 }
+

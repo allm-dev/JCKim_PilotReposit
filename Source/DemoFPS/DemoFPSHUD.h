@@ -16,8 +16,17 @@ class ADemoFPSHUD : public AHUD
 public:
 	ADemoFPSHUD();
 
-	/** Primary draw call for the HUD */
+	UFUNCTION()
+	virtual void PostInitializeComponents() override;
+
+	UFUNCTION()
 	virtual void DrawHUD() override;
+
+	UFUNCTION()
+	void SetGameOver(bool b) {bGameOver = b;}
+
+	UFUNCTION()
+	bool GetGameOver() const {return bGameOver;}
 	
 private:
 	/** Crosshair asset pointer */
@@ -25,6 +34,9 @@ private:
 
 	UPROPERTY()
 	UFont* HudFont;
+
+	UPROPERTY()
+	bool bGameOver;
 
 };
 

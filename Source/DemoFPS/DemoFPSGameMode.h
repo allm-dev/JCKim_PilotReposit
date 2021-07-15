@@ -6,6 +6,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "DemoFPSGameMode.generated.h"
 
+DECLARE_DELEGATE_OneParam(OnGameOverDelegate, bool);
+
 UCLASS(minimalapi)
 class ADemoFPSGameMode : public AGameModeBase
 {
@@ -16,11 +18,8 @@ protected:
 	UPROPERTY()
 	float RunTime;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=PlayTime, Meta=(AllowPrivateAccess=true))
 	float MaxPlayTime;
-
-	UPROPERTY()
-	bool bGameOver;
 
 public:
 	ADemoFPSGameMode();
@@ -29,8 +28,12 @@ public:
 
 	float GetRemainingTime() const {return MaxPlayTime - RunTime;}
 
+	void SetGamePaused (bool b);
+
 	UFUNCTION()
 	virtual void Tick(float DeltaSeconds) override;
+
+	OnGameOverDelegate OnGameOver;
 };
 
 

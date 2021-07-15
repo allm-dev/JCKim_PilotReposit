@@ -10,8 +10,10 @@
 // Sets default values
 AWeapon::AWeapon()
 {
+	Name = TEXT("기본 소총");
+	
 	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FP_Gun"));
-	Mesh->SetOnlyOwnerSee(false);			
+	Mesh->SetOnlyOwnerSee(true);			
 	Mesh->bCastDynamicShadow = false;
 	Mesh->CastShadow = false;
 	RootComponent = Mesh;
@@ -45,7 +47,6 @@ bool AWeapon::FireGun()
 
 			FActorSpawnParameters ActorSpawnParams;
 			ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-			//오너 설정을 스폰과 동시에 할 수 있다...;;;
 			ActorSpawnParams.Owner = GunOwner;
 
 			// spawn the projectile at the muzzle

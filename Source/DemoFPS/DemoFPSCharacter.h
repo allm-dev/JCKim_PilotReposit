@@ -109,7 +109,7 @@ public:
 	int32 GetKillScore() const {return KillScore;}
 
 	int32 GetHP() const {return HP;}
-	void SetHPUp(int32 NewHP) {HP += NewHP;}
+	void SetHPUp(int32 NewHP) {HP = FMath::Clamp<int32>(HP+NewHP, 0, 100);}
 	
 	void SetDamage(int32 NewDamage);
 	void SetKillScoreUp(int32 NewKillScore) {KillScore += NewKillScore; UE_LOG(LogTemp, Warning, TEXT("Kill Score Up"));}
@@ -131,6 +131,8 @@ protected:
 	void EquipSlot1();
 	void EquipSlot2();
 	void EquipSlot3();
+
+	void RestartGame();
 
 	/**
 	 * Called via input to turn at a given rate.

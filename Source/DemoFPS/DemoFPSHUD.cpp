@@ -19,6 +19,16 @@ ADemoFPSHUD::ADemoFPSHUD()
 	static ConstructorHelpers::FObjectFinder<UFont> NewFont(TEXT("/Game/Font/NewFont.NewFont"));
 	if(NewFont.Succeeded()) HudFont = NewFont.Object;
 
+	bGameOver = false;
+
+}
+
+void ADemoFPSHUD::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	
+	ADemoFPSGameMode* MyGameMode = Cast<ADemoFPSGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+	MyGameMode->OnGameOver.BindUObject(this, &ADemoFPSHUD::SetGameOver);
 }
 
 
@@ -31,6 +41,20 @@ void ADemoFPSHUD::DrawHUD()
 	ADemoFPSCharacter* MyCharacter = Cast<ADemoFPSCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
 	ADemoFPSGameMode* MyGameMode = Cast<ADemoFPSGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
 
+	if(bGameOver)
+	{
+		const FString GameOver = FString::Printf(TEXT("Game Over"));
+		DrawText(GameOver, FColor::Turquoise, Center.X-100, Center.Y-50, HudFont, 2, false);
+
+		const FString KillScore = FString::Printf(TEXT("Kill Score : %d"), MyCharacter->GetKillScore());
+		DrawText(KillScore, FColor::Yellow, Center.X-50, Center.Y+50, HudFont);
+
+		const FString Reset = FString::Printf(TEXT("Press P to Restart"));
+		DrawText(Reset, FColor::White, Center.X, Canvas->ClipY-120, HudFont, 1, false);
+
+		return;
+	}
+
 	if(MyCharacter != nullptr && MyGameMode != nullptr)
 	{
 		const FString KillScore = FString::Printf(TEXT("Kill Score : %d"), MyCharacter->GetKillScore());
@@ -41,7 +65,12 @@ void ADemoFPSHUD::DrawHUD()
 
 		if(MyCharacter->GetCurrentWeapon() != nullptr)
 		{
-			const FString AmmunitionStat = FString::Printf(TEXT("Ammo : %d / %d"), MyCharacter->GetCurrentWeapon()->GetCurrentAmmo(), MyCharacter->GetAmmoCount());
+			AWeapon* MyWeapon = MyCharacter->GetCurrentWeapon();
+
+			const FString WeaponName = FString::Printf(TEXT("장착 무기 : %s"), *MyWeapon->GetName());
+			DrawText(WeaponName, FColor::Blue, Canvas->ClipX-200, Canvas->ClipY-115, HudFont);
+
+			const FString AmmunitionStat = FString::Printf(TEXT("Ammo : %d / %d"), MyWeapon->GetCurrentAmmo(), MyCharacter->GetAmmoCount());
 			DrawText(AmmunitionStat, FColor::White,Canvas->ClipX-200, Canvas->ClipY-75, HudFont);
 		}
 		
@@ -50,7 +79,6 @@ void ADemoFPSHUD::DrawHUD()
 
 		const FString HP = FString::Printf(TEXT("HP : %d"), MyCharacter->GetHP());
 		DrawText(HP, FColor::Orange, Canvas->OrgX+50, Canvas->ClipY-75, HudFont);
-		
 		
 	}
 

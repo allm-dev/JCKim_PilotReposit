@@ -13,6 +13,8 @@ AItemRoot::AItemRoot()
 	PrimaryActorTick.bCanEverTick = true;
 
 	SphereComp = CreateDefaultSubobject<USphereComponent>(TEXT("Collider"));
+	SphereComp->OnComponentBeginOverlap.AddDynamic(this, &AItemRoot::OnBeginOverlap);
+	
 	MeshCompST = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshST"));
 	MeshCompSK = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MeshSK"));
 
@@ -20,8 +22,7 @@ AItemRoot::AItemRoot()
 	MeshCompST->SetupAttachment(RootComponent);
 	MeshCompSK->SetupAttachment(RootComponent);
 
-	SphereComp->SetCollisionProfileName("OverlapOnlyPawn");
-	SphereComp->OnComponentBeginOverlap.AddDynamic(this, &AItemRoot::OnBeginOverlap);
+	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
 }
 
@@ -39,67 +40,60 @@ void AItemRoot::Tick(float DeltaTime)
 
 }
 
-inline void AItemRoot::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+void AItemRoot::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	auto const OtherCharacter = Cast<ADemoFPSCharacter>(OtherActor);
+	UE_LOG(LogTemp, Warning, TEXT("Collision Checked"));
+	auto OtherCharacter = Cast<ADemoFPSCharacter>(OtherActor);
 	if(OtherCharacter != nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Collision Checked"));
-		
-		UClass* Weapon0Path = StaticLoadClass(AWeapon::StaticClass(), nullptr, TEXT("/Game/FirstPersonCPP/Blueprints/Weapon1.Weapon1_C"));
-		UClass* Weapon1Path = StaticLoadClass(AWeapon::StaticClass(), nullptr, TEXT("/Game/FirstPersonCPP/Blueprints/Weapon2.Weapon2_C"));
-		UClass* Weapon2Path = StaticLoadClass(AWeapon::StaticClass(), nullptr, TEXT("/Game/FirstPersonCPP/Blueprints/Weapon3.Weapon3_C"));
 		switch (ItemType)
 		{
-			case EItemType::Weapon0:
-				
-				if(Weapon0Path!=nullptr)
-				{
-					auto NewWeapon = GetWorld()->SpawnActor<AWeapon>(Weapon0Path);
-					check(NewWeapon !=nullptr)
-					OtherCharacter->SetWeapon(NewWeapon);
-				}
-				break;
-			case EItemType::Weapon1:
-				
-				if(Weapon1Path!=nullptr)
-				{
-					auto NewWeapon = GetWorld()->SpawnActor<AWeapon>(Weapon1Path);
-					check(NewWeapon !=nullptr)
-					OtherCharacter->SetWeapon(NewWeapon);
-				}
-				break;
-			case EItemType::Weapon2:
-				
-				if(Weapon2Path!=nullptr)
-				{
-					auto NewWeapon = GetWorld()->SpawnActor<AWeapon>(Weapon2Path);
-					check(NewWeapon !=nullptr)
-					OtherCharacter->SetWeapon(NewWeapon);
-				}
-				break;
-			case EItemType::Ammo0:
-				OtherCharacter->SetAmmoCountUp(0);
-				break;
-			case EItemType::Ammo1:
-				OtherCharacter->SetAmmoCountUp(1);
-				break;
-			case EItemType::Ammo2:
-				OtherCharacter->SetAmmoCountUp(2);
-				break;
-			case EItemType::Grenade:
-				OtherCharacter->SetGrenadeCountUp();
-				break;
-			case EItemType::HealPackSmall:
-				OtherCharacter->SetHPUp(50);
-				break;
-			case EItemType::HealPackHuge:
-				OtherCharacter->SetHPUp(100);
-				break;
-			default:
-				UE_LOG(LogTemp, Warning, TEXT("Invalid Item Type to Spawn"));
-				break;
+		case EItemType::Weapon0:
+			if(true)
+			{
+				AWeapon* NewWeapon = GetWorld()->SpawnActor<AWeapon>(StaticLoadClass(AWeapon::StaticClass(), nullptr, TEXT("/Game/FirstPersonCPP/Blueprints/Weapon1.Weapon1_C")));
+				check(NewWeapon !=nullptr)
+				OtherCharacter->SetWeapon(NewWeapon);
+			}
+			break;
+		case EItemType::Weapon1:
+			if(true)
+			{
+				AWeapon* NewWeapon1 = GetWorld()->SpawnActor<AWeapon>(StaticLoadClass(AWeapon::StaticClass(), nullptr, TEXT("/Game/FirstPersonCPP/Blueprints/Weapon2.Weapon2_C")));
+				check(NewWeapon1 !=nullptr)
+				OtherCharacter->SetWeapon(NewWeapon1);
+			}
+			break;
+		case EItemType::Weapon2:
+			if(true)
+			{
+				AWeapon* NewWeapon2 = GetWorld()->SpawnActor<AWeapon>(StaticLoadClass(AWeapon::StaticClass(), nullptr, TEXT("/Game/FirstPersonCPP/Blueprints/Weapon3.Weapon3_C")));
+				check(NewWeapon2 !=nullptr)
+				OtherCharacter->SetWeapon(NewWeapon2);
+			}
+			break;
+		case EItemType::Ammo0:
+			OtherCharacter->SetAmmoCountUp(0);
+			break;
+		case EItemType::Ammo1:
+			OtherCharacter->SetAmmoCountUp(1);
+			break;
+		case EItemType::Ammo2:
+			OtherCharacter->SetAmmoCountUp(2);
+			break;
+		case EItemType::Grenade:
+			OtherCharacter->SetGrenadeCountUp();
+			break;
+		case EItemType::HealPackSmall:
+			OtherCharacter->SetHPUp(50);
+			break;
+		case EItemType::HealPackHuge:
+			OtherCharacter->SetHPUp(100);
+			break;
+		default:
+			UE_LOG(LogTemp, Warning, TEXT("Invalid Item Type to Spawn"));
+			break;
 		}
 		
 		Destroy();
