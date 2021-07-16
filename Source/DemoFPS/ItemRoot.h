@@ -3,15 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "Weapon.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/Actor.h"
 #include "ItemRoot.generated.h"
 
-UENUM()
+UENUM(Blueprintable)
 enum EItemType
 {
-	Weapon0 =0,
+	Weapon0 = 0,
 	Weapon1,
 	Weapon2,
 	Ammo0,
@@ -19,7 +19,8 @@ enum EItemType
 	Ammo2,
 	Grenade,
 	HealPackSmall,
-	HealPackHuge
+	HealPackHuge,
+	End
 };
 
 UCLASS()
@@ -27,33 +28,30 @@ class DEMOFPS_API AItemRoot : public AActor
 {
 	GENERATED_BODY()
 
-	UPROPERTY(VisibleDefaultsOnly, Category=Collier, Meta=(AllowPrivateAccess = true))
+public:
+
+	UPROPERTY(VisibleDefaultsOnly, Category=Collier)
 	USphereComponent* SphereComp;
 	
-	UPROPERTY(VisibleDefaultsOnly, Category=Mesh, Meta =(AllowPrivateAcess = true))
+	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
 	UStaticMeshComponent*  MeshCompST;
 
-	UPROPERTY(VisibleDefaultsOnly, Category=Mesh, Meta =(AllowPrivateAcess = true))
+	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
 	USkeletalMeshComponent*  MeshCompSK;
 
-	UPROPERTY(EditDefaultsOnly, Category=ItemSort, Meta =(AllowPrivateAcess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ItemSort, meta =(ExposeOnSpawn = true))
 	TEnumAsByte<EItemType> ItemType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ItemPath)
+	TMap<TEnumAsByte<EItemType>, TSubclassOf<AWeapon>> ItemPathFinder;
 	
-public:	
-	// Sets default values for this actor's properties
 	AItemRoot();
-
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION()
 	void OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult);
 
+	UFUNCTION(BlueprintCallable)
+	void SetItemType(EItemType NewItemType) {ItemType = NewItemType;}
 };
 
 

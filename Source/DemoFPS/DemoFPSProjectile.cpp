@@ -43,22 +43,21 @@ void ADemoFPSProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor,
 
 		Destroy();
 	}
-	else if(OtherActor != nullptr && OtherActor !=GetOwner())
+	else if (OtherActor != nullptr && OtherActor != GetOwner())
 	{
 		auto OtherCharacter = Cast<ADemoFPSCharacter>(OtherActor);
-		if(OtherCharacter != nullptr)
+		if (OtherCharacter != nullptr)
 		{
 			FString OtherCharacterName = OtherCharacter->GetName();
-			OtherCharacter->SetDamage(Damage);
+			OtherCharacter->AddDamage(Damage);
 
 			if(!IsValid(OtherCharacter))
 			{
-				auto MyOwner = GetOwner();
-				auto Killer =  Cast<ADemoFPSCharacter>(MyOwner);
-				if(Killer !=nullptr)
+				auto Killer =  Cast<ADemoFPSCharacter>(GetOwner());
+				if(Killer != nullptr)
 				{
 					UE_LOG(LogTemp, Warning, TEXT("GunShot Kill %s"), *OtherCharacterName);
-					Killer->SetKillScoreUp(1);
+					Killer->AddKillScore(1);
 				}
 			}
 			

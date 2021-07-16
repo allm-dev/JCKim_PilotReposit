@@ -50,7 +50,7 @@ bool AWeapon::FireGun()
 			ActorSpawnParams.Owner = GunOwner;
 
 			// spawn the projectile at the muzzle
-			auto Projectile = World->SpawnActor<ADemoFPSProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
+			auto* Projectile = World->SpawnActor<ADemoFPSProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
 			CurrentAmmo--;
 
 			return true;

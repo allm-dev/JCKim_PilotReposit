@@ -23,10 +23,13 @@ public:
 	virtual void DrawHUD() override;
 
 	UFUNCTION()
-	void SetGameOver(bool b) {bGameOver = b;}
+	void SetGameOver(bool b)
+	{
+		bGameOver = b;
+	}
 
 	UFUNCTION()
-	bool GetGameOver() const {return bGameOver;}
+	bool GetGameOver() const { return bGameOver; }
 	
 private:
 	/** Crosshair asset pointer */

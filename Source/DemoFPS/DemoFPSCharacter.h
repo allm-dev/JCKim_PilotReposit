@@ -20,66 +20,71 @@ class ADemoFPSCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
-	/** Pawn mesh: 1st person view (arms; seen only by self) */
+public:
+	
 	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
 	USkeletalMeshComponent* Mesh1P;
 
-	UPROPERTY(EditAnywhere, Category=Weapon,meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, Category=Weapon)
 	TArray<AWeapon*> WeaponInventory;
 
-	UPROPERTY(VisibleAnywhere, Category=Weapon,meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, Category=Weapon)
 	int32 MaxWeaponSlots;
 
-	UPROPERTY(EditAnywhere, Category = Weapon,meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, Category = Weapon)
 	AWeapon* CurrentWeapon;
 
-	/** First person camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	UCameraComponent* FirstPersonCameraComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	UCameraComponent* AimCamera;
 
-	UPROPERTY(EditDefaultsOnly, Category = Weapon, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditDefaultsOnly, Category = Weapon)
 	TSubclassOf<AWeapon> DefaultGunClass;
 
-	UPROPERTY(EditDefaultsOnly, Category = Weapon, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditDefaultsOnly, Category = Weapon)
 	TSubclassOf<AWeapon> DefaultGunClass2;
 
-	UPROPERTY(EditDefaultsOnly, Category = Weapon, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditDefaultsOnly, Category = Weapon)
 	TSubclassOf<AWeapon> DefaultGunClass3;
 
-	UPROPERTY(EditAnywhere, Category = AmmoCount, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, Category = AmmoCount)
 	int32 Ammo0Count;
 
-	UPROPERTY(EditAnywhere, Category = AmmoCount, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, Category = AmmoCount)
 	int32 Ammo1Count;
 
-	UPROPERTY(EditAnywhere, Category = AmmoCount, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, Category = AmmoCount)
 	int32 Ammo2Count;
 
-	UPROPERTY(EditAnywhere, Category = AmmoCount, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, Category = AmmoCount)
 	int32 GrenadeCount;
 
-	UPROPERTY(EditAnywhere, Category = KillCount, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, Category = KillCount)
 	int32 KillScore;
 
-	UPROPERTY(EditAnywhere, Category = KillCount, meta = (AllowPrivateAccess = true))
-	int32 HP;
-public:
-	ADemoFPSCharacter();
+	UPROPERTY(EditAnywhere, Category = HealthPoint)
+	int32 CurrentHP;
 
+	UPROPERTY(EditDefaultsOnly, Category = HelathPoint)
+	int32 MaxHP;
+
+	
 protected:
-	virtual void BeginPlay();
+	
+	UFUNCTION()
 	virtual void PostInitializeComponents() override;
+
+	UFUNCTION()
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
-	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
+	ADemoFPSCharacter();
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseTurnRate;
 
-	/** Base look up/down rate, in deg/sec. Other scaling may affect final rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseLookUpRate;
 
@@ -89,83 +94,93 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category=Projectile)
 	TSubclassOf<class AGrenade> BombClass;
 	
-	/** Sound to play each time we fire */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
 	USoundBase* FireSound;
 
-	/** AnimMontage to play each time we fire */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
 	UAnimMontage* FireAnimation;
 
+	UFUNCTION()
 	AWeapon* GetCurrentWeapon() const {return CurrentWeapon;}
+
+	UFUNCTION()
 	void SetWeapon(AWeapon* NewWeapon);
-
-	int32 GetAmmoCount() const;
-
-	void SetAmmoCountUp(int32 AmmoId);
 	
+	UFUNCTION()
+	int32 GetAmmoCount() const;
+	
+	UFUNCTION()
+	void SetAmmoCountUp(int32 AmmoId);
+
+	UFUNCTION()
 	int32 GetGrenadeCount() const {return GrenadeCount;}
+
+	UFUNCTION()
 	void SetGrenadeCountUp() {GrenadeCount += FMath::RandRange(1,5);}
+
+	UFUNCTION()
 	int32 GetKillScore() const {return KillScore;}
 
-	int32 GetHP() const {return HP;}
-	void SetHPUp(int32 NewHP) {HP = FMath::Clamp<int32>(HP+NewHP, 0, 100);}
-	
-	void SetDamage(int32 NewDamage);
-	void SetKillScoreUp(int32 NewKillScore) {KillScore += NewKillScore; UE_LOG(LogTemp, Warning, TEXT("Kill Score Up"));}
+	UFUNCTION()
+	int32 GetCurrentHP() const {return CurrentHP;}
 
+	UFUNCTION()
+	void AddCurrentHP(int32 NewHP) {CurrentHP = FMath::Clamp<int32>(CurrentHP+NewHP, 0, 100);}
+	
+	UFUNCTION()
+	void AddDamage(int32 NewDamage);
+
+	UFUNCTION()
+	void AddKillScore(int32 NewKillScore) {KillScore += NewKillScore; UE_LOG(LogTemp, Warning, TEXT("Kill Score Up"));}
 
 protected:
 	
 	/** Fires a projectile. */
-	void OnFire();
+	UFUNCTION(BlueprintCallable)
+	void OnFireWeapon();
 
 	/** Handles moving forward/backward */
+	UFUNCTION()
 	void MoveForward(float Val);
 
 	/** Handles stafing movement, left and right */
+	UFUNCTION()
 	void MoveRight(float Val);
 
-	void Reload();
+	UFUNCTION(BlueprintCallable)
+	void ReloadWeapon();
 
+	UFUNCTION(BlueprintCallable)
 	void EquipSlot1();
+
+	UFUNCTION(BlueprintCallable)
 	void EquipSlot2();
+
+	UFUNCTION(BlueprintCallable)
 	void EquipSlot3();
 
+	UFUNCTION(BlueprintCallable)
 	void RestartGame();
 
-	/**
-	 * Called via input to turn at a given rate.
-	 * @param Rate	This is a normalized rate, i.e. 1.0 means 100% of desired turn rate
-	 */
 	void TurnAtRate(float Rate);
 
-	/**
-	 * Called via input to turn look up/down at a given rate.
-	 * @param Rate	This is a normalized rate, i.e. 1.0 means 100% of desired turn rate
-	 */
 	void LookUpAtRate(float Rate);
 
 	void AimOn();
+
 	void AimOff();
 
+	UFUNCTION(BlueprintCallable)
 	void OnBomb();
-
-private:
-
-	FVector CameraDefaultPos = FVector::ZeroVector;
 	
-protected:
-	// APawn interface
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
-	// End of APawn interface
-
-
 
 public:
-	/** Returns Mesh1P subobject **/
+
+	UFUNCTION(BlueprintCallable)
 	USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
-	/** Returns FirstPersonCameraComponent subobject **/
+
+	UFUNCTION(BlueprintCallable)
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 
 };

@@ -70,9 +70,9 @@ AGrenade::AGrenade()
 
 void AGrenade::OnExplosion(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
 {
-	if(Cast<ADemoFPSCharacter>(OtherActor)!= nullptr)
+	auto Casting = Cast<ADemoFPSCharacter>(OtherActor);
+	if(Casting != nullptr)
 	{
-		auto Casting = Cast<ADemoFPSCharacter>(OtherActor);
 		Casting->GetCapsuleComponent()->SetSimulatePhysics(true);
 		FVector BlowDir = Casting->GetTargetLocation() - GetActorLocation();
 		BlowDir.Normalize();
@@ -103,8 +103,10 @@ void AGrenade::LifeSpanExpired()
 
 void AGrenade::OnExplosionStart(UActorComponent* Component, bool bReset)
 {
-	Mesh->SetStaticMesh(nullptr);
+	Mesh->SetVisibility(false);
 	ExplosionSphere->SetSphereRadius(300.0f);
+
+	ExplosionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 }
 
 inline void AGrenade::OnExplosionEnd(UParticleSystemComponent* PS)

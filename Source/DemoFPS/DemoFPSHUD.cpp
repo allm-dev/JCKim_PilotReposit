@@ -77,7 +77,7 @@ void ADemoFPSHUD::DrawHUD()
 		const FString GrenadeStat = FString::Printf(TEXT("Grenade : %d"), MyCharacter->GetGrenadeCount());
 		DrawText(GrenadeStat, FColor::Silver,Canvas->ClipX-200, Canvas->ClipY-35, HudFont);
 
-		const FString HP = FString::Printf(TEXT("HP : %d"), MyCharacter->GetHP());
+		const FString HP = FString::Printf(TEXT("HP : %d"), MyCharacter->GetCurrentHP());
 		DrawText(HP, FColor::Orange, Canvas->OrgX+50, Canvas->ClipY-75, HudFont);
 		
 	}

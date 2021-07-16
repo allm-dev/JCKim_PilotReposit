@@ -2,6 +2,7 @@
 
 #include "DemoFPSCharacter.h"
 
+#include "DemoFPSGameInstance.h"
 #include "DemoFPSHUD.h"
 #include "DemoFPSProjectile.h"
 #include "Grenade.h"
@@ -23,21 +24,16 @@ DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
 ADemoFPSCharacter::ADemoFPSCharacter()
 {
-	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
 	
-	// set our turn rates for input
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
 
-	// Create a CameraComponent	
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCameraComponent->SetupAttachment(GetCapsuleComponent());
-	CameraDefaultPos = FVector(-39.56f, 1.75f, 64.f);
-	FirstPersonCameraComponent->SetRelativeLocation(CameraDefaultPos); // Position the camera
+	FirstPersonCameraComponent->SetRelativeLocation(FVector(-39.56f, 1.75f, 64.f)); // Position the camera
 	FirstPersonCameraComponent->bUsePawnControlRotation = true;
 
-	// Create a mesh component that will be used when being viewed from a '1st person' view (when controlling this pawn)
 	Mesh1P = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CharacterMesh1P"));
 	Mesh1P->SetOnlyOwnerSee(true);
 	Mesh1P->SetupAttachment(FirstPersonCameraComponent);
@@ -46,9 +42,9 @@ ADemoFPSCharacter::ADemoFPSCharacter()
 	Mesh1P->SetRelativeRotation(FRotator(7.0f, -15.0f, 3.0f));
 	Mesh1P->SetRelativeLocation(FVector(15.0f,-15.0f, -165.0f));
 
-	MaxWeaponSlots =3;
+	MaxWeaponSlots = 3;
 	WeaponInventory.Init(nullptr, MaxWeaponSlots);
-	CurrentWeapon= nullptr;
+	CurrentWeapon = nullptr;
 	
 	// Default offset from the character location for projectiles to spawn
 	GunOffset = FVector(100.0f, 0.0f, 10.0f);
@@ -72,17 +68,11 @@ ADemoFPSCharacter::ADemoFPSCharacter()
 	DefaultGunClass3 = DefaultGunBP3.Class;
 
 	Ammo0Count =30;
-	Ammo1Count=7;
-	Ammo2Count=10;
-	GrenadeCount =3;
+	Ammo1Count = 7;
+	Ammo2Count = 10;
+	GrenadeCount = 3;
 
-	HP =100;
-}
-
-void ADemoFPSCharacter::BeginPlay()
-{
-	// Call the base class  
-	Super::BeginPlay();
+	CurrentHP = 100;
 }
 
 void ADemoFPSCharacter::PostInitializeComponents()
@@ -92,37 +82,43 @@ void ADemoFPSCharacter::PostInitializeComponents()
 	BombClass = AGrenade::StaticClass();
 	
 	auto World = GetWorld();
-	check(World != nullptr);
-	if(DefaultGunClass !=nullptr)
+	if(IsValid(World))
 	{
-		auto NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass, FVector::ZeroVector, FRotator::ZeroRotator);
-		check(NewWeapon != nullptr);
-		SetWeapon(NewWeapon);
-	}
-	if(DefaultGunClass2 !=nullptr)
-	{
-		auto NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass2, FVector::ZeroVector, FRotator::ZeroRotator);
-		check(NewWeapon != nullptr);
-		SetWeapon(NewWeapon);
-	}
-	if(DefaultGunClass3 !=nullptr)
-	{
-		auto NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass3, FVector::ZeroVector, FRotator::ZeroRotator);
-		check(NewWeapon != nullptr);
-		SetWeapon(NewWeapon);
-	}
+		if(IsValid(DefaultGunClass))
+		{
+			auto* const NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass, FVector::ZeroVector, FRotator::ZeroRotator);
+			if(IsValid(NewWeapon))
+			{
+				SetWeapon(NewWeapon);
+			}
+		}
+		if(IsValid(DefaultGunClass2))
+		{
+			auto* const NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass2, FVector::ZeroVector, FRotator::ZeroRotator);
+			if(IsValid(NewWeapon))
+			{
+				SetWeapon(NewWeapon);
+			}
+		}
+		if(IsValid(DefaultGunClass3))
+		{
+			auto* const NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass3, FVector::ZeroVector, FRotator::ZeroRotator);
+			if(IsValid(NewWeapon))
+			{
+				SetWeapon(NewWeapon);
+			}
+		}
 
-	EquipSlot1();
+		EquipSlot1();
+	}
 }
 
-//BeginDestroy에 오버라이드 삽질 약 2시간...;;
 void ADemoFPSCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {   
 	for(int i =0; i<MaxWeaponSlots; i++)
 	{
 		if(WeaponInventory[i] !=nullptr)
 		{
-			//spawnActor로 생성된 액터 관리자는 World임. SuperComponent가 삭제된다고 알아서 삭제되지 아니함.
 			UE_LOG(LogTemp, Warning, TEXT("Clear Inventory of %s"), *GetName());
 			WeaponInventory[i]->Destroy();
 		}
@@ -143,7 +139,7 @@ void ADemoFPSCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
 	// Bind fire event
-	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ADemoFPSCharacter::OnFire);
+	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ADemoFPSCharacter::OnFireWeapon);
 
 	//폭격 액션
 	PlayerInputComponent->BindAction("Bomb", IE_Pressed, this, &ADemoFPSCharacter::OnBomb);
@@ -158,7 +154,7 @@ void ADemoFPSCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("EquipSlot3", IE_Pressed, this, &ADemoFPSCharacter::EquipSlot3);
 	
 	//장전
-	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &ADemoFPSCharacter::Reload);
+	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &ADemoFPSCharacter::ReloadWeapon);
 
 	//재시작
 	PlayerInputComponent->BindAction("Restart", IE_Pressed, this, &ADemoFPSCharacter::RestartGame).bExecuteWhenPaused =true;
@@ -175,15 +171,22 @@ void ADemoFPSCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 
 void ADemoFPSCharacter::SetWeapon(AWeapon* NewWeapon)
 {
-	if(CurrentWeapon != nullptr) CurrentWeapon->SetActorHiddenInGame(true);
-	check(nullptr != NewWeapon);
-	NewWeapon->SetLifeSpan(0);
+	if(!IsValid(NewWeapon))
+	{
+		return;
+	}
+
+	if(IsValid(CurrentWeapon))
+	{
+		CurrentWeapon->SetActorHiddenInGame(true);
+	}
+
 	NewWeapon->AttachToComponent(Mesh1P, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true), TEXT("GripPoint"));
 	NewWeapon->SetOwner(this);
 	
 	for(int i =0; i<MaxWeaponSlots; i++)
 	{
-		if(WeaponInventory[i] == nullptr)
+		if(!IsValid(WeaponInventory[i]))
 		{
 			WeaponInventory[i] = NewWeapon;
 			CurrentWeapon = NewWeapon;
@@ -194,17 +197,22 @@ void ADemoFPSCharacter::SetWeapon(AWeapon* NewWeapon)
 	//Full inventory
 	for(int i =0; i<MaxWeaponSlots; i++)
 	{
-		if(WeaponInventory[i]==CurrentWeapon)
+		if(WeaponInventory[i] == CurrentWeapon)
 		{
 
-			int32 const PrevWeaponId = CurrentWeapon->GetAmmoId()+ 1;
+			int32 const PrevWeaponId = CurrentWeapon->GetWeaponId();
 			CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
 			CurrentWeapon->SetOwner(nullptr);
 			CurrentWeapon->Destroy();
 			
-			UClass* SpawnClass = StaticLoadClass(AItemRoot::StaticClass(), nullptr, *FString::Printf(TEXT("/Game/FirstPersonCPP/Blueprints/Weapon%dRoot.Weapon%dRoot_C"), PrevWeaponId, PrevWeaponId));
-			GetWorld()->SpawnActor<AItemRoot>(SpawnClass, GetActorLocation()+GetActorForwardVector()*250, FRotator::ZeroRotator);
-			
+			//UClass* SpawnClass = StaticLoadClass(AItemRoot::StaticClass(), nullptr, *FString::Printf(TEXT("/Game/FirstPersonCPP/Blueprints/Weapon%dRoot.Weapon%dRoot_C"), PrevWeaponId, PrevWeaponId));
+			//GetWorld()->SpawnActor<AItemRoot>(SpawnClass, GetActorLocation()+GetActorForwardVector()*250, FRotator::ZeroRotator);
+
+			UClass* SpawnClass = GetGameInstance<UDemoFPSGameInstance>()->GetItemRootClass()[static_cast<ItemRootClassKey>(PrevWeaponId)];
+			if (SpawnClass != nullptr)
+			{
+				GetWorld()->SpawnActor<AItemRoot>(SpawnClass, GetActorLocation()+GetActorForwardVector()*250, FRotator::ZeroRotator);
+			}
 			CurrentWeapon = NewWeapon;
 			WeaponInventory[i] = NewWeapon;
 		}
@@ -258,7 +266,7 @@ void ADemoFPSCharacter::SetAmmoCountUp(int32 AmmoId)
 	}
 }
 
-void ADemoFPSCharacter::Reload()
+void ADemoFPSCharacter::ReloadWeapon()
 {
 	int32 NewAmmo = CurrentWeapon->NeedAmmo();
 
@@ -318,10 +326,13 @@ void ADemoFPSCharacter::EquipSlot3()
 
 void ADemoFPSCharacter::RestartGame()
 {
-	if(Cast<APlayerController>(GetController()) != nullptr)
+	
+	APlayerController* PlayerController = GetController<APlayerController>();
+	if(IsValid(PlayerController))
 	{
-		auto const MyHUD = Cast<ADemoFPSHUD>(Cast<APlayerController>(GetController())->GetHUD());
-		if(MyHUD !=nullptr)
+		
+		auto const MyHUD = PlayerController->GetHUD<ADemoFPSHUD>();
+		if(MyHUD != nullptr)
 		{
 			if(MyHUD->GetGameOver() == true)
 			{
@@ -331,17 +342,17 @@ void ADemoFPSCharacter::RestartGame()
 	}
 }
 
-void ADemoFPSCharacter::SetDamage(int32 NewDamage)
+void ADemoFPSCharacter::AddDamage(int32 NewDamage)
 {
-	HP = FMath::Clamp<int32>(HP-NewDamage, 0 , 100);
+	CurrentHP = FMath::Clamp<int32>(CurrentHP - NewDamage, 0 , 100);
 	UE_LOG(LogTemp, Warning, TEXT("%s got %d damage"), *GetName(), NewDamage)
-	if(HP <= 0)
+	if(CurrentHP <= 0)
 	{
 		Destroy();
 	}
 }
 
-void ADemoFPSCharacter::OnFire()
+void ADemoFPSCharacter::OnFireWeapon()
 {
 	if(CurrentWeapon !=nullptr)
 	{
@@ -413,24 +424,33 @@ void ADemoFPSCharacter::AimOff()
 
 void ADemoFPSCharacter::OnBomb()
 {
-	if(BombClass != nullptr && GrenadeCount >0)
+	UWorld* const World = GetWorld();
+	if (!World)
 	{
-		UWorld* const World = GetWorld();
-		if (World != nullptr)
-		{
-			const FRotator SpawnRotation = GetControlRotation();
-			const FVector SpawnLocation =  GetActorLocation() + SpawnRotation.RotateVector(GunOffset);
-
-			FActorSpawnParameters ActorSpawnParams;
-			ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-
-			auto Grenade = World->SpawnActor<AGrenade>(BombClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
-			Grenade->SetOwner(this);
-			Grenade->OnGrenadeKill.BindUObject(this, &ADemoFPSCharacter::SetKillScoreUp);
-			GrenadeCount--;
-			UE_LOG(LogTemp, Warning, TEXT("Bombing Engaged"));
-		}
+		return;
 	}
+	
+	if(BombClass == nullptr || GrenadeCount  <= 0)
+	{
+		return;
+	}
+	
+	const FRotator SpawnRotation = GetControlRotation();
+	const FVector SpawnLocation =  GetActorLocation() + SpawnRotation.RotateVector(GunOffset);
+
+	FActorSpawnParameters ActorSpawnParams;
+	ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+
+	auto* Grenade = World->SpawnActor<AGrenade>(BombClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
+	if (!IsValid(Grenade))
+	{
+		return;
+	}
+	
+	Grenade->SetOwner(this);
+	Grenade->OnGrenadeKill.BindUObject(this, &ADemoFPSCharacter::AddKillScore);
+	GrenadeCount--;
+	UE_LOG(LogTemp, Warning, TEXT("Bombing Engaged"));
 }
 
 
