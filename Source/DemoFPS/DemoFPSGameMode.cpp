@@ -22,24 +22,32 @@ ADemoFPSGameMode::ADemoFPSGameMode()
 	MaxPlayTime = 60.0f;
 }
 
-void ADemoFPSGameMode::SetGamePaused(bool b)
+void ADemoFPSGameMode::SetGamePaused(bool bIsGameOver)
 {
-	APlayerController* PlayerCt = GetWorld()->GetFirstPlayerController();
-	if (PlayerCt != nullptr)
+	UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		return;
+	}
+		
+	APlayerController* PlayerCt = World->GetFirstPlayerController();
+	if (IsValid(PlayerCt))
 	{
 		OnGameOver.Execute(true);
-		PlayerCt->SetPause(b);
+		PlayerCt->SetPause(bIsGameOver);
 	}
 }
 
 void ADemoFPSGameMode::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	
-	if(RunTime >= MaxPlayTime)
+
+	//UGamePlayStatics::GetTimeSeconds의 반환값은 게임이 재시작(OpenLevel)될 때 초기화되지 않는다.
+	if (RunTime >= MaxPlayTime)
 	{
 		SetGamePaused(true);
 	}
+	
 	else
 	{
 		RunTime += DeltaSeconds;

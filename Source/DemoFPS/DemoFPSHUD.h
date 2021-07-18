@@ -32,7 +32,8 @@ public:
 	bool GetGameOver() const { return bGameOver; }
 	
 private:
-	/** Crosshair asset pointer */
+	
+	UPROPERTY()
 	class UTexture2D* CrosshairTex;
 
 	UPROPERTY()

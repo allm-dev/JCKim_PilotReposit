@@ -37,31 +37,36 @@ ADemoFPSProjectile::ADemoFPSProjectile()
 
 void ADemoFPSProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	if ((OtherActor != nullptr) && (OtherActor != this) && (OtherComp != nullptr) && OtherComp->IsSimulatingPhysics())
+	if(OtherActor == GetOwner())
+	{
+		return;
+	}
+	
+	ADemoFPSCharacter* DownCastedActor = Cast<ADemoFPSCharacter>(OtherActor);
+	if (DownCastedActor != nullptr)
+	{
+		DownCastedActor->AddDamage(Damage);
+
+		if (!IsValid(DownCastedActor))
+		{
+			/*
+			ADemoFPSCharacter* Killer =  Cast<ADemoFPSCharacter>(GetOwner());
+			if(IsValid(Killer))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("GunShot Kill %s"), *OtherCharacterName);
+				Killer->AddKillScore(1);
+			}
+			*/
+			OnGSWKill.Broadcast(1);
+		}
+		
+		Destroy();
+	}
+	
+	else if (OtherComp->IsSimulatingPhysics())
 	{
 		OtherComp->AddImpulseAtLocation(GetVelocity() * 100.0f, GetActorLocation());
 
 		Destroy();
-	}
-	else if (OtherActor != nullptr && OtherActor != GetOwner())
-	{
-		auto OtherCharacter = Cast<ADemoFPSCharacter>(OtherActor);
-		if (OtherCharacter != nullptr)
-		{
-			FString OtherCharacterName = OtherCharacter->GetName();
-			OtherCharacter->AddDamage(Damage);
-
-			if(!IsValid(OtherCharacter))
-			{
-				auto Killer =  Cast<ADemoFPSCharacter>(GetOwner());
-				if(Killer != nullptr)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("GunShot Kill %s"), *OtherCharacterName);
-					Killer->AddKillScore(1);
-				}
-			}
-			
-			Destroy();
-		}
 	}
 }

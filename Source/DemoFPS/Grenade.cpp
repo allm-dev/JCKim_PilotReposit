@@ -65,23 +65,30 @@ AGrenade::AGrenade()
 	DefaultEffect->SetupAttachment(RootComponent);
 	ExplosionEffect->SetupAttachment(RootComponent);
 
-	
+	ExplosionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AGrenade::OnExplosion(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
 {
-	auto Casting = Cast<ADemoFPSCharacter>(OtherActor);
-	if(Casting != nullptr)
+	ADemoFPSCharacter* DownCastedActor = Cast<ADemoFPSCharacter>(OtherActor);
+	if (DownCastedActor == nullptr)
 	{
-		Casting->GetCapsuleComponent()->SetSimulatePhysics(true);
-		FVector BlowDir = Casting->GetTargetLocation() - GetActorLocation();
-		BlowDir.Normalize();
-		Casting->GetCapsuleComponent()->AddImpulse(BlowDir *1000.0f, NAME_None, true);
-		
-		OtherActor->SetLifeSpan(0.5f);
-		OnGrenadeKill.Execute(1);
+		return;
 	}
 	
+	UCapsuleComponent* ActorCapsuleComp = DownCastedActor->GetCapsuleComponent();
+	if (ActorCapsuleComp == nullptr)
+	{
+		return;
+	}
+	
+	ActorCapsuleComp->SetSimulatePhysics(true);
+	FVector BlowDir = DownCastedActor->GetTargetLocation() - GetActorLocation();
+	BlowDir.Normalize();
+	DownCastedActor->GetCapsuleComponent()->AddImpulse(BlowDir *1000.0f, NAME_None, true);
+	
+	//OtherActor->SetLifeSpan(0.5f);
+	OnGrenadeKill.Execute(1);
 }
 
 
@@ -90,14 +97,12 @@ void AGrenade::BeginPlay()
 {
 	Super::BeginPlay();
 	SetLifeSpan(3.0f);
-	
 }
 
 void AGrenade::LifeSpanExpired()
 {
 	DefaultEffect->SetActive(false);
 	ExplosionEffect->Activate();
-
 }
 
 
@@ -105,7 +110,6 @@ void AGrenade::OnExplosionStart(UActorComponent* Component, bool bReset)
 {
 	Mesh->SetVisibility(false);
 	ExplosionSphere->SetSphereRadius(300.0f);
-
 	ExplosionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 }
 

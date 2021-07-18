@@ -8,6 +8,7 @@
 #include "GameFramework/Actor.h"
 #include "Weapon.generated.h"
 
+
 class ADemoFPSProjectile;
 
 UCLASS()
@@ -34,7 +35,7 @@ class DEMOFPS_API AWeapon : public AActor
 	int32 AmmoId;
 
 	UPROPERTY(EditDefaultsOnly, Category=Name, Meta = (AllowPrivateAcces=true))
-	FString Name;
+	FString WeaponName;
 
 	UPROPERTY(EditDefaultsOnly, Category = Name, Meta = (AllowPrivateAcces =true))
 	int32 WeaponId;
@@ -65,12 +66,10 @@ public:
 	int32 GetAmmoId() const {return AmmoId;}
 
 	UFUNCTION()
-	FString GetName() const {return Name;}
+	FString GetWeaponName() const {return WeaponName;}
 
 	UFUNCTION()
 	int32 GetWeaponId() const {return WeaponId;}
 	
-protected:
-	virtual void BeginPlay() override;
-
+	
 };

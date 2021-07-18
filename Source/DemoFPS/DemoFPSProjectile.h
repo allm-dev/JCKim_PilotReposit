@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "DemoFPSProjectile.generated.h"
 
+DECLARE_MULTICAST_DELEGATE_OneParam(OnGSWKillDelegate, int32);
+
 class USphereComponent;
 class UProjectileMovementComponent;
 
@@ -14,11 +16,9 @@ class ADemoFPSProjectile : public AActor
 {
 	GENERATED_BODY()
 
-	/** Sphere collision component */
 	UPROPERTY(VisibleDefaultsOnly, Category=Projectile)
 	USphereComponent* CollisionComp;
 
-	/** Projectile movement component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 	UProjectileMovementComponent* ProjectileMovement;
 	
@@ -29,13 +29,15 @@ class ADemoFPSProjectile : public AActor
 public:
 	ADemoFPSProjectile();
 
-	/** called when projectile hits something */
 	UFUNCTION()
 	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
-	/** Returns CollisionComp subobject **/
+	UFUNCTION(BlueprintCallable)
 	USphereComponent* GetCollisionComp() const { return CollisionComp; }
-	/** Returns ProjectileMovement subobject **/
+
+	UFUNCTION(BlueprintCallable)
 	UProjectileMovementComponent* GetProjectileMovement() const { return ProjectileMovement; }
+
+	OnGSWKillDelegate OnGSWKill;
 };
 

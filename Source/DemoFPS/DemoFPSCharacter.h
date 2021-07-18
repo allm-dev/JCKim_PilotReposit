@@ -11,6 +11,7 @@ class UInputComponent;
 class USkeletalMeshComponent;
 class USceneComponent;
 class UCameraComponent;
+class UAmmunitionComp;
 class UMotionControllerComponent;
 class UAnimMontage;
 class USoundBase;
@@ -49,6 +50,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = Weapon)
 	TSubclassOf<AWeapon> DefaultGunClass3;
 
+	UPROPERTY(VisibleDefaultsOnly, Category = Ammunition)
+	UAmmunitionComp* AmmunitionBag;
+
+	/*
 	UPROPERTY(EditAnywhere, Category = AmmoCount)
 	int32 Ammo0Count;
 
@@ -60,7 +65,8 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = AmmoCount)
 	int32 GrenadeCount;
-
+	*/
+	
 	UPROPERTY(EditAnywhere, Category = KillCount)
 	int32 KillScore;
 
@@ -104,19 +110,23 @@ public:
 	AWeapon* GetCurrentWeapon() const {return CurrentWeapon;}
 
 	UFUNCTION()
-	void SetWeapon(AWeapon* NewWeapon);
-	
-	UFUNCTION()
-	int32 GetAmmoCount() const;
-	
-	UFUNCTION()
-	void SetAmmoCountUp(int32 AmmoId);
+	void SetWeaponInSlot(AWeapon* NewWeapon);
 
+	/*
+	UFUNCTION()
+	int32 GetCurrentAmmoCount() const;
+	
+	UFUNCTION()
+	void AddCurrentAmmoCount(int32 AmmoId);
+	*/
+
+	/*
 	UFUNCTION()
 	int32 GetGrenadeCount() const {return GrenadeCount;}
 
 	UFUNCTION()
 	void SetGrenadeCountUp() {GrenadeCount += FMath::RandRange(1,5);}
+	*/
 
 	UFUNCTION()
 	int32 GetKillScore() const {return KillScore;}
@@ -125,7 +135,7 @@ public:
 	int32 GetCurrentHP() const {return CurrentHP;}
 
 	UFUNCTION()
-	void AddCurrentHP(int32 NewHP) {CurrentHP = FMath::Clamp<int32>(CurrentHP+NewHP, 0, 100);}
+	void AddCurrentHP(int32 NewHP);
 	
 	UFUNCTION()
 	void AddDamage(int32 NewDamage);
@@ -171,7 +181,7 @@ protected:
 	void AimOff();
 
 	UFUNCTION(BlueprintCallable)
-	void OnBomb();
+	void OnBombKeyPressed();
 	
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
 
@@ -183,5 +193,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 
+	UFUNCTION(BlueprintCallable)
+	UAmmunitionComp* GetAmmunitionComp() const {return AmmunitionBag;}
 };
 

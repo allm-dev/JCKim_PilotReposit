@@ -8,21 +8,14 @@
 #include "Engine/GameInstance.h"
 #include "DemoFPSGameInstance.generated.h"
 
-/**
- * 
- */
-
 UENUM(Blueprintable)
-enum ItemRootClassKey
+enum EWeaponRootClassKey
 {
 	Weapon1Root = 0,
 	Weapon2Root, 
 	Weapon3Root,
-	ItemRootClassKeyEnd
-	
+	WeaponRootClassKeyEnd
 };
-
-
 
 UCLASS()
 class DEMOFPS_API UDemoFPSGameInstance : public UGameInstance
@@ -34,7 +27,7 @@ public:
 	UDemoFPSGameInstance();
 
 	UPROPERTY(EditDefaultsOnly, Category=ItemRootClass)
-	TMap<TEnumAsByte<ItemRootClassKey>, TSubclassOf<AItemRoot>> ItemRootClass;
+	TMap<TEnumAsByte<EWeaponRootClassKey>, TSubclassOf<AItemRoot>> ItemRootClass;
 
-	TMap<TEnumAsByte<ItemRootClassKey>, TSubclassOf<AItemRoot>> GetItemRootClass() const {return ItemRootClass;}
+	TMap<TEnumAsByte<EWeaponRootClassKey>, TSubclassOf<AItemRoot>> GetItemRootClass() const {return ItemRootClass;}
 };

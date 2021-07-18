@@ -2,6 +2,8 @@
 
 
 #include "ItemRoot.h"
+
+#include "AmmunitionComp.h"
 #include "Weapon.h"
 #include "DemoFPSCharacter.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
@@ -32,73 +34,33 @@ AItemRoot::AItemRoot()
 void AItemRoot::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	auto OtherCharacter = Cast<ADemoFPSCharacter>(OtherActor);
+	ADemoFPSCharacter* OtherCharacter = Cast<ADemoFPSCharacter>(OtherActor);
+	
 	if (IsValid(OtherCharacter))
 	{
+
 		switch (ItemType)
 		{
 		case EItemType::Weapon0:
-			if(ItemPathFinder.Contains(EItemType::Weapon0))
-			{
-				UClass* NewWeaponClass = ItemPathFinder[EItemType::Weapon0];
-				if(NewWeaponClass != nullptr)
-				{
-					AWeapon* NewWeapon = GetWorld()->SpawnActor<AWeapon>(NewWeaponClass);
-					if(NewWeapon != nullptr)
-					{
-						OtherCharacter->SetWeapon(NewWeapon);
-					}
-				}
-			}
-				//AWeapon* NewWeapon = GetWorld()->SpawnActor<AWeapon>(StaticLoadClass(AWeapon::StaticClass(), nullptr, TEXT("/Game/FirstPersonCPP/Blueprints/Weapon1.Weapon1_C")));
-				//check(NewWeapon !=nullptr)
-				//OtherCharacter->SetWeapon(NewWeapon);
+			OtherCharacter->SetWeaponInSlot(GenerateWeaponRoot(Weapon0));
 			break;
 		case EItemType::Weapon1:
-			if(ItemPathFinder.Contains(EItemType::Weapon1))
-			{
-				UClass* NewWeaponClass = ItemPathFinder[EItemType::Weapon1];
-				if(NewWeaponClass != nullptr)
-				{
-					AWeapon* NewWeapon = GetWorld()->SpawnActor<AWeapon>(NewWeaponClass);
-					if(NewWeapon != nullptr)
-					{
-						OtherCharacter->SetWeapon(NewWeapon);
-					}
-				}
-			}
-				//AWeapon* NewWeapon1 = GetWorld()->SpawnActor<AWeapon>(StaticLoadClass(AWeapon::StaticClass(), nullptr, TEXT("/Game/FirstPersonCPP/Blueprints/Weapon2.Weapon2_C")));
-				//check(NewWeapon1 !=nullptr)
-				//OtherCharacter->SetWeapon(NewWeapon1);
+			OtherCharacter->SetWeaponInSlot(GenerateWeaponRoot(Weapon1));
 			break;
 		case EItemType::Weapon2:
-			if(ItemPathFinder.Contains(EItemType::Weapon2))
-			{
-				UClass* NewWeaponClass = ItemPathFinder[EItemType::Weapon2];
-				if(NewWeaponClass != nullptr)
-				{
-					AWeapon* NewWeapon = GetWorld()->SpawnActor<AWeapon>(NewWeaponClass);
-					if(NewWeapon != nullptr)
-					{
-						OtherCharacter->SetWeapon(NewWeapon);
-					}
-				}
-			}
-				//AWeapon* NewWeapon2 = GetWorld()->SpawnActor<AWeapon>(StaticLoadClass(AWeapon::StaticClass(), nullptr, TEXT("/Game/FirstPersonCPP/Blueprints/Weapon3.Weapon3_C")));
-				//check(NewWeapon2 !=nullptr)
-				//OtherCharacter->SetWeapon(NewWeapon2);
+			OtherCharacter->SetWeaponInSlot(GenerateWeaponRoot(Weapon2));
 			break;
 		case EItemType::Ammo0:
-			OtherCharacter->SetAmmoCountUp(0);
+			GenerateRandAmmoRoot(0, 20, 40, OtherCharacter);
 			break;
 		case EItemType::Ammo1:
-			OtherCharacter->SetAmmoCountUp(1);
+			GenerateRandAmmoRoot(1, 5, 10, OtherCharacter);
 			break;
 		case EItemType::Ammo2:
-			OtherCharacter->SetAmmoCountUp(2);
+			GenerateRandAmmoRoot(2, 7, 14, OtherCharacter);
 			break;
 		case EItemType::Grenade:
-			OtherCharacter->SetGrenadeCountUp();
+			GenerateRandGrenadeRoot(3,6, OtherCharacter);
 			break;
 		case EItemType::HealPackSmall:
 			OtherCharacter->AddCurrentHP(50);
@@ -112,5 +74,49 @@ void AItemRoot::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
 		}
 		
 		Destroy();
+	}
+}
+
+AWeapon* AItemRoot::GenerateWeaponRoot(EItemType NewItemType)
+{
+	if (!ItemPathFinder.Contains(NewItemType))
+	{
+		return nullptr;
+	}
+	
+	UClass* NewWeaponClass = ItemPathFinder[NewItemType];
+	if (NewWeaponClass == nullptr)
+	{
+		return  nullptr;
+	}
+	
+	AWeapon* NewWeapon = GetWorld()->SpawnActor<AWeapon>(NewWeaponClass);
+	if (IsValid(NewWeapon))
+	{
+		return NewWeapon;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+void AItemRoot::GenerateRandAmmoRoot(int32 WeaponAmmoId, int32 Min, int32 Max, ADemoFPSCharacter* Receiver)
+{
+	UAmmunitionComp* AmmunitionBag = Receiver->GetAmmunitionComp();
+
+	if (AmmunitionBag != nullptr)
+	{
+		AmmunitionBag->AddAmmoXCount(WeaponAmmoId, FMath::RandRange(Min, Max));
+	}
+}
+
+void AItemRoot::GenerateRandGrenadeRoot(int32 Min, int32 Max, ADemoFPSCharacter* Receiver)
+{
+	UAmmunitionComp* AmmunitionBag = Receiver->GetAmmunitionComp();
+
+	if (AmmunitionBag != nullptr)
+	{
+		AmmunitionBag->AddCurrentGrenadeCount(FMath::RandRange(Min, Max));
 	}
 }

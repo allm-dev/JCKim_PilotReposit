@@ -12,17 +12,38 @@ class DEMOFPS_API UAmmunitionComp : public UActorComponent
 {
 	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere, Category = AmmoCount)
+	int32 Ammo0Count;
+
+	UPROPERTY(EditAnywhere, Category = AmmoCount)
+	int32 Ammo1Count;
+
+	UPROPERTY(EditAnywhere, Category = AmmoCount)
+	int32 Ammo2Count;
+
+	UPROPERTY(EditAnywhere, Category = AmmoCount)
+	int32 GrenadeCount;
+
 public:	
 	// Sets default values for this component's properties
 	UAmmunitionComp();
 
-protected:
-	// Called when the game starts
-	virtual void BeginPlay() override;
+	UFUNCTION()
+	int32 GetAmmoXCount(int32 AmmoId) const;
 
-public:	
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	UFUNCTION()
+	void DeductAmmoXCount(int32 AmmoId, int32 Amount);
 
-		
+	UFUNCTION()
+	void AddAmmoXCount(int32 AmmoId, int32 Amount);
+	
+	UFUNCTION()
+	int32 GetCurrentGrenadeCount() const {return GrenadeCount;}
+
+	UFUNCTION()
+	void AddCurrentGrenadeCount(int32 Amount);
+
+	UFUNCTION()
+	void DeductCurrentGrenadeCount(int32 Amount);
+
 };

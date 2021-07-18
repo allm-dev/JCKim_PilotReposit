@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "DemoFPSCharacter.h"
 #include "Weapon.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/Actor.h"
@@ -39,7 +41,7 @@ public:
 	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
 	USkeletalMeshComponent*  MeshCompSK;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ItemSort, meta =(ExposeOnSpawn = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ItemSort)
 	TEnumAsByte<EItemType> ItemType;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ItemPath)
@@ -52,6 +54,17 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetItemType(EItemType NewItemType) {ItemType = NewItemType;}
+
+	AWeapon* GenerateWeaponRoot(EItemType NewItemType);
+
+	void GenerateRandAmmoRoot(int32 WeaponAmmoId, int32 Min, int32 Max, ADemoFPSCharacter* Receiver);
+
+	void GenerateRandGrenadeRoot(int32 Min, int32 Max, ADemoFPSCharacter* Receiver);
 };
+
+
+
+
+
 
 

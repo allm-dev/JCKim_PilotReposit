@@ -10,7 +10,7 @@
 // Sets default values
 AWeapon::AWeapon()
 {
-	Name = TEXT("기본 소총");
+	WeaponName = TEXT("기본 소총");
 	
 	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FP_Gun"));
 	Mesh->SetOnlyOwnerSee(true);			
@@ -30,53 +30,62 @@ AWeapon::AWeapon()
 
 bool AWeapon::FireGun()
 {
-	// try and fire a projectile
-	if (ProjectileClass != nullptr && CurrentAmmo >0)
+	if (CurrentAmmo <= 0)
 	{
-		UWorld* const World = GetWorld();
-		if (World != nullptr)
-		{
-			auto GunOwner = Cast<ADemoFPSCharacter>(GetOwner());
-			check(GunOwner !=nullptr);
-			//총기 반동
-			GunOwner->AddControllerPitchInput(FMath::RandRange(-1.50f, 0.00f));
-			GunOwner->AddControllerYawInput(FMath::RandRange(-1.00f, 1.00f));
-			
-			const FRotator SpawnRotation = GunOwner->GetControlRotation();
-			const FVector SpawnLocation = Muzzle->GetComponentLocation();
-
-			FActorSpawnParameters ActorSpawnParams;
-			ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-			ActorSpawnParams.Owner = GunOwner;
-
-			// spawn the projectile at the muzzle
-			auto* Projectile = World->SpawnActor<ADemoFPSProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
-			CurrentAmmo--;
-
-			return true;
-		}
+		return false;
 	}
 
-	return false;
+	if (ProjectileClass == nullptr)
+	{
+		return false;
+	}
+	
+	UWorld* const World = GetWorld();
+	if (World == nullptr)
+	{
+		return false;
+	}
+	
+	ADemoFPSCharacter* GunOwner = Cast<ADemoFPSCharacter>(GetOwner());
+	if (GunOwner == nullptr)
+	{
+		return false;
+	}
+	
+	GunOwner->AddControllerPitchInput(FMath::RandRange(-1.50f, 0.00f));
+	GunOwner->AddControllerYawInput(FMath::RandRange(-1.00f, 1.00f));
+
+	const FRotator SpawnRotation = GunOwner->GetControlRotation();
+	const FVector SpawnLocation = Muzzle->GetComponentLocation();
+
+	FActorSpawnParameters ActorSpawnParams;
+	ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+	ActorSpawnParams.Owner = GunOwner;
+
+	ADemoFPSProjectile* Projectile = World->SpawnActor<ADemoFPSProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
+	if (!IsValid(Projectile))
+	{
+		return false;
+	}
+
+	Projectile->OnGSWKill.AddUObject(GunOwner, &ADemoFPSCharacter::AddKillScore);
+	CurrentAmmo--;
+
+	return true;
 }
 
 bool AWeapon::Reload(int32 NewAmmo)
 {
-	if(CurrentAmmo < MaxAmmo)
+	if (CurrentAmmo >= MaxAmmo || NewAmmo <= 0)
 	{
-		CurrentAmmo += NewAmmo;
-		return true;
+		return false;
 	}
-	return false;
-}
-
-
-// Called when the game starts or when spawned
-void AWeapon::BeginPlay()
-{
-	Super::BeginPlay();
 	
+	CurrentAmmo += NewAmmo;
+	return true;
 }
+
+
 
 
 

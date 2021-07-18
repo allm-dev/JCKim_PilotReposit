@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DemoFPSCharacter.h"
-
 #include "DemoFPSGameInstance.h"
 #include "DemoFPSHUD.h"
 #include "DemoFPSProjectile.h"
@@ -16,11 +15,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "MotionControllerComponent.h"
 #include "MovieSceneTracksComponentTypes.h"
+#include "AmmunitionComp.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
-
-//////////////////////////////////////////////////////////////////////////
-// ADemoFPSCharacter
 
 ADemoFPSCharacter::ADemoFPSCharacter()
 {
@@ -67,10 +64,14 @@ ADemoFPSCharacter::ADemoFPSCharacter()
 	static ConstructorHelpers::FClassFinder<AWeapon> DefaultGunBP3(TEXT("/Game/FirstPersonCPP/Blueprints/Weapon3.Weapon3_C"));
 	DefaultGunClass3 = DefaultGunBP3.Class;
 
+	AmmunitionBag = CreateDefaultSubobject<UAmmunitionComp>(TEXT("AmmunitionBag"));
+
+	/*
 	Ammo0Count =30;
 	Ammo1Count = 7;
 	Ammo2Count = 10;
 	GrenadeCount = 3;
+	*/
 
 	CurrentHP = 100;
 }
@@ -80,32 +81,33 @@ void ADemoFPSCharacter::PostInitializeComponents()
 	Super::PostInitializeComponents();
 
 	BombClass = AGrenade::StaticClass();
+	check(IsValid(BombClass));
 	
 	auto World = GetWorld();
-	if(IsValid(World))
+	if (IsValid(World))
 	{
-		if(IsValid(DefaultGunClass))
+		if (IsValid(DefaultGunClass))
 		{
-			auto* const NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass, FVector::ZeroVector, FRotator::ZeroRotator);
-			if(IsValid(NewWeapon))
+			AWeapon* const NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass, FVector::ZeroVector, FRotator::ZeroRotator);
+			if (IsValid(NewWeapon))
 			{
-				SetWeapon(NewWeapon);
+				SetWeaponInSlot(NewWeapon);
 			}
 		}
-		if(IsValid(DefaultGunClass2))
+		if (IsValid(DefaultGunClass2))
 		{
-			auto* const NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass2, FVector::ZeroVector, FRotator::ZeroRotator);
-			if(IsValid(NewWeapon))
+			AWeapon* const NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass2, FVector::ZeroVector, FRotator::ZeroRotator);
+			if (IsValid(NewWeapon))
 			{
-				SetWeapon(NewWeapon);
+				SetWeaponInSlot(NewWeapon);
 			}
 		}
-		if(IsValid(DefaultGunClass3))
+		if (IsValid(DefaultGunClass3))
 		{
-			auto* const NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass3, FVector::ZeroVector, FRotator::ZeroRotator);
-			if(IsValid(NewWeapon))
+			AWeapon* const NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass3, FVector::ZeroVector, FRotator::ZeroRotator);
+			if (IsValid(NewWeapon))
 			{
-				SetWeapon(NewWeapon);
+				SetWeaponInSlot(NewWeapon);
 			}
 		}
 
@@ -115,9 +117,9 @@ void ADemoFPSCharacter::PostInitializeComponents()
 
 void ADemoFPSCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {   
-	for(int i =0; i<MaxWeaponSlots; i++)
+	for (int i =0; i<MaxWeaponSlots; i++)
 	{
-		if(WeaponInventory[i] !=nullptr)
+		if (WeaponInventory.IsValidIndex(i) && IsValid(WeaponInventory[i]))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Clear Inventory of %s"), *GetName());
 			WeaponInventory[i]->Destroy();
@@ -126,57 +128,44 @@ void ADemoFPSCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Input
-
 void ADemoFPSCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
-	// set up gameplay key bindings
 	check(PlayerInputComponent);
 
-	// Bind jump events
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
-	// Bind fire event
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ADemoFPSCharacter::OnFireWeapon);
 
-	//폭격 액션
-	PlayerInputComponent->BindAction("Bomb", IE_Pressed, this, &ADemoFPSCharacter::OnBomb);
+	PlayerInputComponent->BindAction("Bomb", IE_Pressed, this, &ADemoFPSCharacter::OnBombKeyPressed);
 
-	//조준
 	PlayerInputComponent->BindAction("Aim", IE_Pressed, this, &ADemoFPSCharacter::AimOn);
 	PlayerInputComponent->BindAction("Aim", IE_Released, this, &ADemoFPSCharacter::AimOff);
 
-	//무기교체
 	PlayerInputComponent->BindAction("EquipSlot1", IE_Pressed, this, &ADemoFPSCharacter::EquipSlot1);
 	PlayerInputComponent->BindAction("EquipSlot2", IE_Pressed, this, &ADemoFPSCharacter::EquipSlot2);
 	PlayerInputComponent->BindAction("EquipSlot3", IE_Pressed, this, &ADemoFPSCharacter::EquipSlot3);
 	
-	//장전
 	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &ADemoFPSCharacter::ReloadWeapon);
 
-	//재시작
 	PlayerInputComponent->BindAction("Restart", IE_Pressed, this, &ADemoFPSCharacter::RestartGame).bExecuteWhenPaused =true;
 
-	// Bind movement events
 	PlayerInputComponent->BindAxis("MoveForward", this, &ADemoFPSCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ADemoFPSCharacter::MoveRight);
-
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
 	PlayerInputComponent->BindAxis("TurnRate", this, &ADemoFPSCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &ADemoFPSCharacter::LookUpAtRate);
 }
 
-void ADemoFPSCharacter::SetWeapon(AWeapon* NewWeapon)
+void ADemoFPSCharacter::SetWeaponInSlot(AWeapon* NewWeapon)
 {
-	if(!IsValid(NewWeapon))
+	if (!IsValid(NewWeapon))
 	{
 		return;
 	}
 
-	if(IsValid(CurrentWeapon))
+	if (IsValid(CurrentWeapon))
 	{
 		CurrentWeapon->SetActorHiddenInGame(true);
 	}
@@ -186,41 +175,54 @@ void ADemoFPSCharacter::SetWeapon(AWeapon* NewWeapon)
 	
 	for(int i =0; i<MaxWeaponSlots; i++)
 	{
-		if(!IsValid(WeaponInventory[i]))
+		if (!WeaponInventory.IsValidIndex(i) || IsValid(WeaponInventory[i]))
 		{
-			WeaponInventory[i] = NewWeapon;
-			CurrentWeapon = NewWeapon;
-			return;
+			continue;
 		}
+		
+		WeaponInventory[i] = NewWeapon;
+		CurrentWeapon = NewWeapon;
+	
+		//빈 공간이 있어 무기가 슬롯에 설정되면 함수가 여기에서 종료
+		return;
 	}
 
-	//Full inventory
-	for(int i =0; i<MaxWeaponSlots; i++)
+	for (int i =0; i<MaxWeaponSlots; i++)
 	{
-		if(WeaponInventory[i] == CurrentWeapon)
+		if (!WeaponInventory.IsValidIndex(i) || !IsValid(WeaponInventory[i]))
+		{
+			continue;
+		}
+		
+		if (WeaponInventory[i] == CurrentWeapon)
 		{
 
 			int32 const PrevWeaponId = CurrentWeapon->GetWeaponId();
-			CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
-			CurrentWeapon->SetOwner(nullptr);
-			CurrentWeapon->Destroy();
-			
 			//UClass* SpawnClass = StaticLoadClass(AItemRoot::StaticClass(), nullptr, *FString::Printf(TEXT("/Game/FirstPersonCPP/Blueprints/Weapon%dRoot.Weapon%dRoot_C"), PrevWeaponId, PrevWeaponId));
 			//GetWorld()->SpawnActor<AItemRoot>(SpawnClass, GetActorLocation()+GetActorForwardVector()*250, FRotator::ZeroRotator);
 
-			UClass* SpawnClass = GetGameInstance<UDemoFPSGameInstance>()->GetItemRootClass()[static_cast<ItemRootClassKey>(PrevWeaponId)];
-			if (SpawnClass != nullptr)
+			auto ItemRootClassFinder = GetGameInstance<UDemoFPSGameInstance>()->GetItemRootClass();
+			if(ItemRootClassFinder.Contains(static_cast<EWeaponRootClassKey>(PrevWeaponId)))
 			{
-				GetWorld()->SpawnActor<AItemRoot>(SpawnClass, GetActorLocation()+GetActorForwardVector()*250, FRotator::ZeroRotator);
+				UClass* SpawnClass = ItemRootClassFinder[static_cast<EWeaponRootClassKey>(PrevWeaponId)];
+				if (SpawnClass != nullptr)
+				{
+					AItemRoot* SpawnedRoot = GetWorld()->SpawnActor<AItemRoot>(SpawnClass, GetActorLocation()+GetActorForwardVector()*250, FRotator::ZeroRotator);
+					if (!IsValid(SpawnedRoot))
+					{
+						return;
+					}
+				}
 			}
+			
+			CurrentWeapon->Destroy();
 			CurrentWeapon = NewWeapon;
 			WeaponInventory[i] = NewWeapon;
 		}
 	}
-	
 }
-
-int32 ADemoFPSCharacter::GetAmmoCount() const
+/*
+int32 ADemoFPSCharacter::GetCurrentAmmoCount() const
 {
 	int32 Res =0;
 	
@@ -244,7 +246,7 @@ int32 ADemoFPSCharacter::GetAmmoCount() const
 	return Res;
 }
 
-void ADemoFPSCharacter::SetAmmoCountUp(int32 AmmoId)
+void ADemoFPSCharacter::AddCurrentAmmoCount(int32 AmmoId)
 {
 	switch (AmmoId)
 	{
@@ -265,38 +267,35 @@ void ADemoFPSCharacter::SetAmmoCountUp(int32 AmmoId)
 			break;
 	}
 }
-
+*/
 void ADemoFPSCharacter::ReloadWeapon()
 {
-	int32 NewAmmo = CurrentWeapon->NeedAmmo();
-
-	switch (CurrentWeapon->GetAmmoId())
+	if (!IsValid(CurrentWeapon) || AmmunitionBag == nullptr)
 	{
-		case 0:
-			if(NewAmmo > Ammo0Count) NewAmmo = Ammo0Count;
-			Ammo0Count -= NewAmmo;
-			break;
-		case 1:
-			if(NewAmmo > Ammo1Count) NewAmmo = Ammo1Count;
-			Ammo1Count -= NewAmmo;
-			break;
-		case 2:
-			if(NewAmmo > Ammo2Count) NewAmmo = Ammo2Count;
-			Ammo2Count -= NewAmmo;
-			break;
-		default:
-			UE_LOG(LogTemp, Warning, TEXT("Unknown AmmoId"));
-			NewAmmo =0;
-			break;
+		return;
+	}
+	
+	int32 NewAmmo = CurrentWeapon->NeedAmmo();
+	int32 const AmmoId = CurrentWeapon->GetAmmoId();
+	int32 const CurrentWeaponAmmoCount = AmmunitionBag->GetAmmoXCount(AmmoId);
+
+	if (NewAmmo > CurrentWeaponAmmoCount)
+	{
+		NewAmmo = CurrentWeaponAmmoCount;
+		AmmunitionBag->DeductAmmoXCount(AmmoId, NewAmmo);
 	}
 
 	CurrentWeapon->Reload(NewAmmo);
-	
 }
 
 void ADemoFPSCharacter::EquipSlot1()
 {
-	if(WeaponInventory[0] !=nullptr && CurrentWeapon != WeaponInventory[0])
+	if (!WeaponInventory.IsValidIndex(0))
+	{
+		return;
+	}
+	
+	if (IsValid(WeaponInventory[0]) && CurrentWeapon != WeaponInventory[0])
 	{
 		CurrentWeapon->SetActorHiddenInGame(true);
 		CurrentWeapon = WeaponInventory[0];
@@ -306,7 +305,12 @@ void ADemoFPSCharacter::EquipSlot1()
 
 void ADemoFPSCharacter::EquipSlot2()
 {
-	if(WeaponInventory[1] !=nullptr && CurrentWeapon != WeaponInventory[1])
+	if (!WeaponInventory.IsValidIndex(1))
+	{
+		return;
+	}
+	
+	if (IsValid(WeaponInventory[1]) && CurrentWeapon != WeaponInventory[1])
 	{
 		CurrentWeapon->SetActorHiddenInGame(true);
 		CurrentWeapon = WeaponInventory[1];
@@ -316,37 +320,51 @@ void ADemoFPSCharacter::EquipSlot2()
 
 void ADemoFPSCharacter::EquipSlot3()
 {
-	if(WeaponInventory[2] !=nullptr && CurrentWeapon != WeaponInventory[2])
+	if (!WeaponInventory.IsValidIndex(2))
+	{
+		return;
+	}
+	
+	if (IsValid(WeaponInventory[2]) && CurrentWeapon != WeaponInventory[2])
 	{
 		CurrentWeapon->SetActorHiddenInGame(true);
 		CurrentWeapon = WeaponInventory[2];
 		CurrentWeapon->SetActorHiddenInGame(false);
 	}
+	
 }
 
 void ADemoFPSCharacter::RestartGame()
 {
-	
 	APlayerController* PlayerController = GetController<APlayerController>();
-	if(IsValid(PlayerController))
+	if (!IsValid(PlayerController))
 	{
-		
-		auto const MyHUD = PlayerController->GetHUD<ADemoFPSHUD>();
-		if(MyHUD != nullptr)
-		{
-			if(MyHUD->GetGameOver() == true)
-			{
-				UGameplayStatics::OpenLevel(GetWorld(), TEXT("FirstPersonExampleMap"));
-			}
-		}
+		return;
+	}
+	
+	ADemoFPSHUD* const MyHUD = PlayerController->GetHUD<ADemoFPSHUD>();
+	if (!IsValid(MyHUD))
+	{
+		return;
+	}
+	
+	if (MyHUD->GetGameOver() == true)
+	{
+		UGameplayStatics::OpenLevel(GetWorld(), TEXT("FirstPersonExampleMap"));
 	}
 }
 
 void ADemoFPSCharacter::AddDamage(int32 NewDamage)
 {
+	if (NewDamage < 0)
+	{
+		return;
+	}
+	
 	CurrentHP = FMath::Clamp<int32>(CurrentHP - NewDamage, 0 , 100);
+	
 	UE_LOG(LogTemp, Warning, TEXT("%s got %d damage"), *GetName(), NewDamage)
-	if(CurrentHP <= 0)
+	if (CurrentHP <= 0)
 	{
 		Destroy();
 	}
@@ -354,32 +372,34 @@ void ADemoFPSCharacter::AddDamage(int32 NewDamage)
 
 void ADemoFPSCharacter::OnFireWeapon()
 {
-	if(CurrentWeapon !=nullptr)
+	if (!IsValid(CurrentWeapon))
 	{
-		if(CurrentWeapon->FireGun())
+		return;
+	}
+	
+	if (CurrentWeapon->FireGun() == true)
+	{
+		if (FireSound != nullptr)
 		{
-			if (FireSound != nullptr)
-			{
-				UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
-			}
+			UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
+		}
 
-			if (FireAnimation != nullptr)
+		if (FireAnimation != nullptr)
+		{
+			UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance();
+			if (AnimInstance != nullptr)
 			{
-				UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance();
-				if (AnimInstance != nullptr)
-				{
-					AnimInstance->Montage_Play(FireAnimation, 1.f);
-				}
+				AnimInstance->Montage_Play(FireAnimation, 1.f);
 			}
 		}
 	}
+	
 }
 
 void ADemoFPSCharacter::MoveForward(float Value)
 {
 	if (Value != 0.0f)
 	{
-		// add movement in that direction
 		AddMovementInput(GetActorForwardVector(), Value);
 	}
 }
@@ -388,25 +408,32 @@ void ADemoFPSCharacter::MoveRight(float Value)
 {
 	if (Value != 0.0f)
 	{
-		// add movement in that direction
 		AddMovementInput(GetActorRightVector(), Value);
 	}
 }
 
 void ADemoFPSCharacter::TurnAtRate(float Rate)
 {
-	// calculate delta for this frame from the rate information
 	AddControllerYawInput(Rate * BaseTurnRate * GetWorld()->GetDeltaSeconds());
 }
 
 void ADemoFPSCharacter::LookUpAtRate(float Rate)
 {
-	// calculate delta for this frame from the rate information
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
 void ADemoFPSCharacter::AimOn()
 {
+	if (FirstPersonCameraComponent == nullptr || AimCamera == nullptr)
+	{
+		return;
+	}
+
+	if (!IsValid(CurrentWeapon))
+	{
+		return;
+	}
+	
 	UE_LOG(LogTemp, Warning, TEXT("AimOn"));
 	FirstPersonCameraComponent->SetActive(false);
 	AimCamera->SetActive(true);
@@ -415,6 +442,11 @@ void ADemoFPSCharacter::AimOn()
 
 void ADemoFPSCharacter::AimOff()
 {
+	if (FirstPersonCameraComponent == nullptr || AimCamera == nullptr)
+	{
+		return;
+	}
+	
 	UE_LOG(LogTemp, Warning, TEXT("AimOff"));
 	FirstPersonCameraComponent->SetActive(true);
 	AimCamera->AttachToComponent(FirstPersonCameraComponent, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true));
@@ -422,15 +454,22 @@ void ADemoFPSCharacter::AimOff()
 	AimCamera->SetActive(false);
 }
 
-void ADemoFPSCharacter::OnBomb()
+void ADemoFPSCharacter::OnBombKeyPressed()
 {
 	UWorld* const World = GetWorld();
-	if (!World)
+	if (World == nullptr)
 	{
 		return;
 	}
-	
-	if(BombClass == nullptr || GrenadeCount  <= 0)
+	if (AmmunitionBag == nullptr)
+	{
+		return;
+	}
+	if (BombClass == nullptr) 
+	{
+		return;
+	}
+	if (AmmunitionBag->GetCurrentGrenadeCount() <= 0)
 	{
 		return;
 	}
@@ -449,8 +488,18 @@ void ADemoFPSCharacter::OnBomb()
 	
 	Grenade->SetOwner(this);
 	Grenade->OnGrenadeKill.BindUObject(this, &ADemoFPSCharacter::AddKillScore);
-	GrenadeCount--;
+	AmmunitionBag->DeductCurrentGrenadeCount(1);
 	UE_LOG(LogTemp, Warning, TEXT("Bombing Engaged"));
+}
+
+void ADemoFPSCharacter::AddCurrentHP(int32 NewHP)
+{
+	if (NewHP <= 0)
+	{
+		return;
+	}
+	
+	CurrentHP = FMath::Clamp<int32>(CurrentHP+NewHP, 0, 100);
 }
 
 

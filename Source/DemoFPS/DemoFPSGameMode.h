@@ -28,7 +28,7 @@ public:
 
 	float GetRemainingTime() const {return MaxPlayTime - RunTime;}
 
-	void SetGamePaused (bool b);
+	void SetGamePaused (bool bIsGameOver);
 
 	UFUNCTION()
 	virtual void Tick(float DeltaSeconds) override;
