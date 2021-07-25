@@ -2,7 +2,6 @@
 
 #include "DemoFPSCharacter.h"
 #include "DemoFPSGameInstance.h"
-#include "DemoFPSHUD.h"
 #include "DemoFPSProjectile.h"
 #include "Grenade.h"
 #include "ItemRoot.h"
@@ -16,8 +15,9 @@
 #include "MotionControllerComponent.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "AmmunitionComp.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
+#include "DemoFPSGameState.h"
+#include "DemoFPSPlayerState.h"
+#include "Net/UnrealNetwork.h"
 
 ADemoFPSCharacter::ADemoFPSCharacter()
 {
@@ -39,6 +39,21 @@ ADemoFPSCharacter::ADemoFPSCharacter()
 	Mesh1P->SetRelativeRotation(FRotator(7.0f, -15.0f, 3.0f));
 	Mesh1P->SetRelativeLocation(FVector(15.0f,-15.0f, -165.0f));
 
+	Mesh3P = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CharacterMesh3P"));
+	Mesh3P->SetOwnerNoSee(true);
+	Mesh3P->SetupAttachment(GetCapsuleComponent());
+	Mesh3P->bCastDynamicShadow = true;
+	Mesh3P->CastShadow = true;
+	Mesh3P->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
+	Mesh3P->SetRelativeLocation(FVector(0.0f, 0.0f, -100.0f));
+
+	GunMesh3P = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("GunMesh3P"));
+	GunMesh3P->SetOwnerNoSee(true);
+	GunMesh3P->SetupAttachment(Mesh3P);
+	GunMesh3P->bCastDynamicShadow = true;
+	GunMesh3P->CastShadow = true;
+	GunMesh3P->SetSkeletalMesh(nullptr);
+
 	MaxWeaponSlots = 3;
 	WeaponInventory.Init(nullptr, MaxWeaponSlots);
 	CurrentWeapon = nullptr;
@@ -55,64 +70,28 @@ ADemoFPSCharacter::ADemoFPSCharacter()
 	AimCamera->bUsePawnControlRotation = true;
 	AimCamera->SetActive(false);
 
-	static ConstructorHelpers::FClassFinder<AWeapon> DefaultGunBP(TEXT("/Game/FirstPersonCPP/Blueprints/Weapon1.Weapon1_C"));
-	DefaultGunClass = DefaultGunBP.Class;
-
-	static ConstructorHelpers::FClassFinder<AWeapon> DefaultGunBP2(TEXT("/Game/FirstPersonCPP/Blueprints/Weapon2.Weapon2_C"));
-	DefaultGunClass2 = DefaultGunBP2.Class;
-
-	static ConstructorHelpers::FClassFinder<AWeapon> DefaultGunBP3(TEXT("/Game/FirstPersonCPP/Blueprints/Weapon3.Weapon3_C"));
-	DefaultGunClass3 = DefaultGunBP3.Class;
-
 	AmmunitionBag = CreateDefaultSubobject<UAmmunitionComp>(TEXT("AmmunitionBag"));
 
-	/*
-	Ammo0Count =30;
-	Ammo1Count = 7;
-	Ammo2Count = 10;
-	GrenadeCount = 3;
-	*/
-
-	CurrentHP = 100;
+	bReplicates = true;
 }
 
 void ADemoFPSCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
+	GunMesh3P->AttachToComponent(Mesh3P, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true), TEXT("HandGrip"));
 	BombClass = AGrenade::StaticClass();
-	check(IsValid(BombClass));
-	
-	auto World = GetWorld();
-	if (IsValid(World))
-	{
-		if (IsValid(DefaultGunClass))
-		{
-			AWeapon* const NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass, FVector::ZeroVector, FRotator::ZeroRotator);
-			if (IsValid(NewWeapon))
-			{
-				SetWeaponInSlot(NewWeapon);
-			}
-		}
-		if (IsValid(DefaultGunClass2))
-		{
-			AWeapon* const NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass2, FVector::ZeroVector, FRotator::ZeroRotator);
-			if (IsValid(NewWeapon))
-			{
-				SetWeaponInSlot(NewWeapon);
-			}
-		}
-		if (IsValid(DefaultGunClass3))
-		{
-			AWeapon* const NewWeapon = World->SpawnActor<AWeapon>(DefaultGunClass3, FVector::ZeroVector, FRotator::ZeroRotator);
-			if (IsValid(NewWeapon))
-			{
-				SetWeaponInSlot(NewWeapon);
-			}
-		}
+}
 
-		EquipSlot1();
-	}
+void ADemoFPSCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+	
+	SetWeaponInSlot(EWeaponClassKey::WeaponClass1);
+	SetWeaponInSlot(EWeaponClassKey::WeaponClass2);
+	SetWeaponInSlot(EWeaponClassKey::WeaponClass3);
+    
+	EquipSlot1();
 }
 
 void ADemoFPSCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -125,6 +104,7 @@ void ADemoFPSCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 			WeaponInventory[i]->Destroy();
 		}
 	}
+
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -156,37 +136,78 @@ void ADemoFPSCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAxis("TurnRate", this, &ADemoFPSCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &ADemoFPSCharacter::LookUpAtRate);
+
+
 }
 
-void ADemoFPSCharacter::SetWeaponInSlot(AWeapon* NewWeapon)
+void ADemoFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ADemoFPSCharacter, WeaponInventory);
+	DOREPLIFETIME(ADemoFPSCharacter, CurrentWeapon);
+	DOREPLIFETIME(ADemoFPSCharacter, GunMesh3P);
+}
+
+bool ADemoFPSCharacter::ServerSetWeaponInSlot_Validate(EWeaponClassKey WeaponClassKey)
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return false;
+	}
+	
+	UDemoFPSGameInstance* GameInstance = World->GetGameInstance<UDemoFPSGameInstance>();
+	if (GameInstance ==  nullptr)
+	{
+		return false;
+	}
+
+	TMap<TEnumAsByte<EWeaponClassKey>, TSubclassOf<AWeapon>> const WeaponClassFinder = GameInstance->GetWeaponClass();
+	if (!WeaponClassFinder.Contains(WeaponClassKey))
+	{
+		return false;
+	}
+
+	if (WeaponClassFinder[WeaponClassKey] == nullptr)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+
+void ADemoFPSCharacter::ServerSetWeaponInSlot_Implementation(EWeaponClassKey WeaponClassKey)
+{
+	TMap<TEnumAsByte<EWeaponClassKey>, TSubclassOf<AWeapon>> const WeaponClassFinder = GetGameInstance<UDemoFPSGameInstance>()->GetWeaponClass();
+
+	UClass* const NewWeaponClass = WeaponClassFinder[WeaponClassKey];
+	AWeapon* NewWeapon = GetWorld()->SpawnActor<AWeapon>(NewWeaponClass);
+	
 	if (!IsValid(NewWeapon))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Failed to Spawn Weapon on server"))
 		return;
 	}
 
-	if (IsValid(CurrentWeapon))
-	{
-		CurrentWeapon->SetActorHiddenInGame(true);
-	}
-
-	NewWeapon->AttachToComponent(Mesh1P, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true), TEXT("GripPoint"));
-	NewWeapon->SetOwner(this);
-	
+	//인벤토리 내 빈공간 찾기
 	for(int i =0; i<MaxWeaponSlots; i++)
 	{
 		if (!WeaponInventory.IsValidIndex(i) || IsValid(WeaponInventory[i]))
 		{
 			continue;
 		}
-		
+
 		WeaponInventory[i] = NewWeapon;
 		CurrentWeapon = NewWeapon;
-	
-		//빈 공간이 있어 무기가 슬롯에 설정되면 함수가 여기에서 종료
+		CurrentWeapon->AttachToComponent(Mesh1P, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true), TEXT("GripPoint"));
+		CurrentWeapon->SetOwner(this);
+		GetWorldTimerManager().SetTimer(MultiCastVisualizeWeaponInSlotDelay, this, &ADemoFPSCharacter::MultiCastVisualizeCurrentWeapon, 0.2f, false);
+
 		return;
 	}
 
+	//인벤토리에 빈공간이 없음
 	for (int i =0; i<MaxWeaponSlots; i++)
 	{
 		if (!WeaponInventory.IsValidIndex(i) || !IsValid(WeaponInventory[i]))
@@ -198,76 +219,88 @@ void ADemoFPSCharacter::SetWeaponInSlot(AWeapon* NewWeapon)
 		{
 
 			int32 const PrevWeaponId = CurrentWeapon->GetWeaponId();
-			//UClass* SpawnClass = StaticLoadClass(AItemRoot::StaticClass(), nullptr, *FString::Printf(TEXT("/Game/FirstPersonCPP/Blueprints/Weapon%dRoot.Weapon%dRoot_C"), PrevWeaponId, PrevWeaponId));
-			//GetWorld()->SpawnActor<AItemRoot>(SpawnClass, GetActorLocation()+GetActorForwardVector()*250, FRotator::ZeroRotator);
 
-			auto ItemRootClassFinder = GetGameInstance<UDemoFPSGameInstance>()->GetItemRootClass();
-			if(ItemRootClassFinder.Contains(static_cast<EWeaponRootClassKey>(PrevWeaponId)))
+			TMap<TEnumAsByte<EWeaponRootClassKey>, TSubclassOf<AItemRoot>> ItemRootClassFinder = GetGameInstance<UDemoFPSGameInstance>()->GetWeaponRootClass();
+			if (!ItemRootClassFinder.Contains(static_cast<EWeaponRootClassKey>(PrevWeaponId)))
 			{
-				UClass* SpawnClass = ItemRootClassFinder[static_cast<EWeaponRootClassKey>(PrevWeaponId)];
-				if (SpawnClass != nullptr)
-				{
-					AItemRoot* SpawnedRoot = GetWorld()->SpawnActor<AItemRoot>(SpawnClass, GetActorLocation()+GetActorForwardVector()*250, FRotator::ZeroRotator);
-					if (!IsValid(SpawnedRoot))
-					{
-						return;
-					}
-				}
+				continue;
 			}
 			
+			UClass* NewWeaponRootClass = ItemRootClassFinder[static_cast<EWeaponRootClassKey>(PrevWeaponId)];
+			if (NewWeaponRootClass == nullptr)
+			{
+				continue;
+			}
+			
+			AItemRoot* NewWeaponRoot = GetWorld()->SpawnActor<AItemRoot>(NewWeaponRootClass, GetActorLocation()+GetActorForwardVector()*250, FRotator::ZeroRotator);
+			if (!IsValid(NewWeaponRoot))
+			{
+				continue;
+			}
+			
+			UE_LOG(LogTemp, Warning, TEXT("Spawning new itemRoot"));
 			CurrentWeapon->Destroy();
 			CurrentWeapon = NewWeapon;
 			WeaponInventory[i] = NewWeapon;
+			CurrentWeapon->AttachToComponent(Mesh1P, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true), TEXT("GripPoint"));
+			CurrentWeapon->SetOwner(this);
+			GetWorldTimerManager().SetTimer(MultiCastVisualizeWeaponInSlotDelay, this, &ADemoFPSCharacter::MultiCastVisualizeCurrentWeapon, 0.2f, false);
+
+			
+			return;
 		}
 	}
-}
-/*
-int32 ADemoFPSCharacter::GetCurrentAmmoCount() const
-{
-	int32 Res =0;
 	
-	if(CurrentWeapon != nullptr)
-	switch (CurrentWeapon->GetAmmoId())
-	{
-	case 0:
-		Res =Ammo0Count;
-		break;
-	case 1:
-		Res = Ammo1Count;
-		break;
-	case 2:
-		Res=Ammo2Count;
-		break;
-	default:
-		Res =0;
-		break;
-	}
-	
-	return Res;
 }
 
-void ADemoFPSCharacter::AddCurrentAmmoCount(int32 AmmoId)
+void ADemoFPSCharacter::SetWeaponInSlot(EWeaponClassKey WeaponClassKey)
 {
-	switch (AmmoId)
+	if (!HasAuthority())
 	{
-		case 0:
-			Ammo0Count += FMath::RandRange(40,60);
-		break;
+		return;
+	}
+
+	ServerSetWeaponInSlot(WeaponClassKey);
+}
+
+void ADemoFPSCharacter::MultiCastVisualizeCurrentWeapon_Implementation()
+{
+	if (!IsValid(CurrentWeapon))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CurrentWeapon was not yet replicated from server due to spawning overhead"))
+		return;
+	}
+	
+	if (!IsValid(GunMesh3P))
+	{
+		UE_LOG(LogTemp, Error, TEXT("No %s GunMesh3P"), *GetName());
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("CurrentWeapon is %s"), *CurrentWeapon->GetWeaponName());
+	
+	GunMesh3P->SetSkeletalMesh(CurrentWeapon->GetGunSkeletalMesh());
+	GunMesh3P->SetMaterial(0, CurrentWeapon->GetGunMaterialInterface());
+
+	for (AWeapon* Weapon : WeaponInventory)
+	{
+		if (!IsValid(Weapon))
+		{
+			continue;
+		}
 		
-		case 1:
-			Ammo1Count += FMath::RandRange(10,20);
-		break;
-
-		case 2:
-			Ammo2Count += FMath::RandRange(15,25);
-		break;
-
-		default:
-			UE_LOG(LogTemp, Warning, TEXT("Unknown Ammo ID, Discarded"));
-			break;
+		if (Weapon == CurrentWeapon)
+		{
+			Weapon->SetActorHiddenInGame(false);
+		}
+		else
+		{
+			Weapon->SetActorHiddenInGame(true);
+		}
 	}
+
 }
-*/
+
 void ADemoFPSCharacter::ReloadWeapon()
 {
 	if (!IsValid(CurrentWeapon) || AmmunitionBag == nullptr)
@@ -282,91 +315,66 @@ void ADemoFPSCharacter::ReloadWeapon()
 	if (NewAmmo > CurrentWeaponAmmoCount)
 	{
 		NewAmmo = CurrentWeaponAmmoCount;
-		AmmunitionBag->DeductAmmoXCount(AmmoId, NewAmmo);
+	}
+	
+	AmmunitionBag->DeductAmmoXCount(AmmoId, NewAmmo);
+	CurrentWeapon->Reload(NewAmmo);
+}
+
+void ADemoFPSCharacter::ServerEquipSlotX_Implementation(uint8 SlotNum)
+{
+	if (!WeaponInventory.IsValidIndex(SlotNum))
+	{
+		return;
+	}
+	
+	if (!IsValid(WeaponInventory[SlotNum]) || CurrentWeapon == WeaponInventory[SlotNum])
+	{
+		return;
 	}
 
-	CurrentWeapon->Reload(NewAmmo);
+	CurrentWeapon = WeaponInventory[SlotNum];
+	UE_LOG(LogTemp, Warning, TEXT("Server Equipped slot%d, %s"), SlotNum, *CurrentWeapon->GetWeaponName());
+	GetWorldTimerManager().SetTimer(MultiCastVisualizeWeaponInSlotDelay, this, &ADemoFPSCharacter::MultiCastVisualizeCurrentWeapon, 0.2f, false);
 }
 
 void ADemoFPSCharacter::EquipSlot1()
 {
-	if (!WeaponInventory.IsValidIndex(0))
-	{
-		return;
-	}
-	
-	if (IsValid(WeaponInventory[0]) && CurrentWeapon != WeaponInventory[0])
-	{
-		CurrentWeapon->SetActorHiddenInGame(true);
-		CurrentWeapon = WeaponInventory[0];
-		CurrentWeapon->SetActorHiddenInGame(false);
-	}
+	ServerEquipSlotX(0);
 }
 
 void ADemoFPSCharacter::EquipSlot2()
 {
-	if (!WeaponInventory.IsValidIndex(1))
-	{
-		return;
-	}
-	
-	if (IsValid(WeaponInventory[1]) && CurrentWeapon != WeaponInventory[1])
-	{
-		CurrentWeapon->SetActorHiddenInGame(true);
-		CurrentWeapon = WeaponInventory[1];
-		CurrentWeapon->SetActorHiddenInGame(false);
-	}
+	ServerEquipSlotX(1);
 }
 
 void ADemoFPSCharacter::EquipSlot3()
 {
-	if (!WeaponInventory.IsValidIndex(2))
-	{
-		return;
-	}
-	
-	if (IsValid(WeaponInventory[2]) && CurrentWeapon != WeaponInventory[2])
-	{
-		CurrentWeapon->SetActorHiddenInGame(true);
-		CurrentWeapon = WeaponInventory[2];
-		CurrentWeapon->SetActorHiddenInGame(false);
-	}
-	
+	ServerEquipSlotX(2);
 }
 
 void ADemoFPSCharacter::RestartGame()
 {
-	APlayerController* PlayerController = GetController<APlayerController>();
-	if (!IsValid(PlayerController))
+	UWorld* World = GetWorld();
+	if (World == nullptr)
 	{
 		return;
 	}
 	
-	ADemoFPSHUD* const MyHUD = PlayerController->GetHUD<ADemoFPSHUD>();
-	if (!IsValid(MyHUD))
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	ADemoFPSGameState* GameState = World->GetGameState<ADemoFPSGameState>();
+	if (!IsValid(GameState))
 	{
 		return;
 	}
 	
-	if (MyHUD->GetGameOver() == true)
+	if (GameState->GetIsGameOver() == true)
 	{
 		UGameplayStatics::OpenLevel(GetWorld(), TEXT("FirstPersonExampleMap"));
-	}
-}
-
-void ADemoFPSCharacter::AddDamage(int32 NewDamage)
-{
-	if (NewDamage < 0)
-	{
-		return;
-	}
-	
-	CurrentHP = FMath::Clamp<int32>(CurrentHP - NewDamage, 0 , 100);
-	
-	UE_LOG(LogTemp, Warning, TEXT("%s got %d damage"), *GetName(), NewDamage)
-	if (CurrentHP <= 0)
-	{
-		Destroy();
 	}
 }
 
@@ -392,8 +400,35 @@ void ADemoFPSCharacter::OnFireWeapon()
 				AnimInstance->Montage_Play(FireAnimation, 1.f);
 			}
 		}
+
+		ServerPlayFireAnim();
 	}
 	
+}
+
+void ADemoFPSCharacter::MultiCastPlayFireAnim_Implementation()
+{
+	if (FireAnim3P == nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("No valid AnimMontage!"));
+		return;
+	}
+	
+	UAnimInstance* AnimInstance = Mesh3P->GetAnimInstance();
+	if (AnimInstance == nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("No valid AnimInstance!"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("MultiCasting FireAnim3P Montage Play"));
+	AnimInstance->Montage_Play(FireAnim3P, 1.f);
+
+}
+
+void ADemoFPSCharacter::ServerPlayFireAnim_Implementation()
+{
+	MultiCastPlayFireAnim();
 }
 
 void ADemoFPSCharacter::MoveForward(float Value)
@@ -456,17 +491,13 @@ void ADemoFPSCharacter::AimOff()
 
 void ADemoFPSCharacter::OnBombKeyPressed()
 {
-	UWorld* const World = GetWorld();
-	if (World == nullptr)
-	{
-		return;
-	}
 	if (AmmunitionBag == nullptr)
 	{
 		return;
 	}
 	if (BombClass == nullptr) 
 	{
+		UE_LOG(LogTemp, Warning, TEXT("No Valid Grenade Class on Client"));
 		return;
 	}
 	if (AmmunitionBag->GetCurrentGrenadeCount() <= 0)
@@ -477,29 +508,82 @@ void ADemoFPSCharacter::OnBombKeyPressed()
 	const FRotator SpawnRotation = GetControlRotation();
 	const FVector SpawnLocation =  GetActorLocation() + SpawnRotation.RotateVector(GunOffset);
 
+	UE_LOG(LogTemp, Warning, TEXT("Client sending grenade spawn request"));
+	ServerSpawnBomb(SpawnLocation, SpawnRotation);
+
+	AmmunitionBag->DeductCurrentGrenadeCount(1);
+
+}
+
+void ADemoFPSCharacter::MultiCastPlayHitAnim3P_Implementation()
+{
+	if (!IsValid(Mesh3P))
+	{
+		UE_LOG(LogTemp, Log, TEXT("%s No mesh for third person view"), *GetName());
+		return;
+	}
+	
+	UAnimInstance* AnimInstance = Mesh3P->GetAnimInstance();
+	if (!IsValid(AnimInstance))
+	{
+		UE_LOG(LogTemp, Log, TEXT("%s No AnimInstance was assigned to Mesh3P of %s"), *GetName());
+		return;
+	}
+
+	AnimInstance->Montage_Play(HitAnim3P, 1.0f);
+}
+
+void ADemoFPSCharacter::ServerPlayHitAnim3P_Implementation()
+{
+	MultiCastPlayHitAnim3P();
+}
+
+void ADemoFPSCharacter::PlayHitAnim3P_Implementation()
+{
+	ServerPlayHitAnim3P();
+}
+
+
+void ADemoFPSCharacter::ServerSpawnBomb_Implementation(const FVector& SpawnLocation, const FRotator& SpawnRotation)
+{
+	UWorld* const World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+	
 	FActorSpawnParameters ActorSpawnParams;
 	ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 
 	auto* Grenade = World->SpawnActor<AGrenade>(BombClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
 	if (!IsValid(Grenade))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Sever Failed to spawn grenade"));
 		return;
 	}
 	
 	Grenade->SetOwner(this);
-	Grenade->OnGrenadeKill.BindUObject(this, &ADemoFPSCharacter::AddKillScore);
-	AmmunitionBag->DeductCurrentGrenadeCount(1);
+	Grenade->OnGrenadeKill.BindUObject(MyPlayerState, &ADemoFPSPlayerState::AddKillScore);
+	
 	UE_LOG(LogTemp, Warning, TEXT("Bombing Engaged"));
 }
 
-void ADemoFPSCharacter::AddCurrentHP(int32 NewHP)
+bool ADemoFPSCharacter::ServerSpawnBomb_Validate(const FVector& SpawnLocation, const FRotator& SpawnRotation)
 {
-	if (NewHP <= 0)
+	if(SpawnLocation == FVector(ForceInit) || SpawnRotation == FRotator(ForceInit))
 	{
-		return;
+		UE_LOG(LogTemp, Warning, TEXT("Wrong Spawn Point Coordination Assigned"));
+		return false;
 	}
 	
-	CurrentHP = FMath::Clamp<int32>(CurrentHP+NewHP, 0, 100);
+	return true;
 }
 
+void ADemoFPSCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
 
+	MyPlayerState = GetPlayerState<ADemoFPSPlayerState>();
+	check(IsValid(MyPlayerState))
+	
+}

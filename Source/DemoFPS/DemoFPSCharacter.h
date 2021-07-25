@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DemoFPSGameInstance.h"
 #include "GameFramework/Character.h"
 #include "DemoFPSCharacter.generated.h"
 
 class AWeapon;
+class ADemoFPSPlayerState;
 class UInputComponent;
 class USkeletalMeshComponent;
 class USceneComponent;
@@ -26,14 +28,20 @@ public:
 	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
 	USkeletalMeshComponent* Mesh1P;
 
-	UPROPERTY(EditAnywhere, Category=Weapon)
+	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
+	USkeletalMeshComponent* Mesh3P;
+
+	UPROPERTY(EditAnywhere, Category=Weapon, Replicated)
 	TArray<AWeapon*> WeaponInventory;
 
 	UPROPERTY(VisibleAnywhere, Category=Weapon)
 	int32 MaxWeaponSlots;
 
-	UPROPERTY(EditAnywhere, Category = Weapon)
+	UPROPERTY(EditAnywhere, Category = Weapon, Replicated)
 	AWeapon* CurrentWeapon;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = GunMesh3P, Replicated)
+	USkeletalMeshComponent* GunMesh3P;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	UCameraComponent* FirstPersonCameraComponent;
@@ -41,49 +49,26 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	UCameraComponent* AimCamera;
 
-	UPROPERTY(EditDefaultsOnly, Category = Weapon)
-	TSubclassOf<AWeapon> DefaultGunClass;
-
-	UPROPERTY(EditDefaultsOnly, Category = Weapon)
-	TSubclassOf<AWeapon> DefaultGunClass2;
-
-	UPROPERTY(EditDefaultsOnly, Category = Weapon)
-	TSubclassOf<AWeapon> DefaultGunClass3;
-
 	UPROPERTY(VisibleDefaultsOnly, Category = Ammunition)
 	UAmmunitionComp* AmmunitionBag;
 
-	/*
-	UPROPERTY(EditAnywhere, Category = AmmoCount)
-	int32 Ammo0Count;
-
-	UPROPERTY(EditAnywhere, Category = AmmoCount)
-	int32 Ammo1Count;
-
-	UPROPERTY(EditAnywhere, Category = AmmoCount)
-	int32 Ammo2Count;
-
-	UPROPERTY(EditAnywhere, Category = AmmoCount)
-	int32 GrenadeCount;
-	*/
-	
-	UPROPERTY(EditAnywhere, Category = KillCount)
-	int32 KillScore;
-
-	UPROPERTY(EditAnywhere, Category = HealthPoint)
-	int32 CurrentHP;
-
-	UPROPERTY(EditDefaultsOnly, Category = HelathPoint)
-	int32 MaxHP;
-
+	UPROPERTY(VisibleDefaultsOnly, Category = PalyerState)
+	ADemoFPSPlayerState* MyPlayerState;
 	
 protected:
-	
-	UFUNCTION()
+
 	virtual void PostInitializeComponents() override;
 
-	UFUNCTION()
+	virtual void BeginPlay() override;
+	
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	
+	virtual void PossessedBy(AController* NewController) override;
+	
+	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 
 public:
 	ADemoFPSCharacter();
@@ -106,60 +91,53 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
 	UAnimMontage* FireAnimation;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=GamePlay)
+	UAnimMontage* FireAnim3P;
+
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category=GamePlay)
+	UAnimMontage* HitAnim3P;
+
 	UFUNCTION()
 	AWeapon* GetCurrentWeapon() const {return CurrentWeapon;}
 
-	UFUNCTION()
-	void SetWeaponInSlot(AWeapon* NewWeapon);
-
-	/*
-	UFUNCTION()
-	int32 GetCurrentAmmoCount() const;
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerSetWeaponInSlot(EWeaponClassKey WeaponClassKey);
 	
 	UFUNCTION()
-	void AddCurrentAmmoCount(int32 AmmoId);
-	*/
+	void SetWeaponInSlot(EWeaponClassKey WeaponClassKey);
 
-	/*
-	UFUNCTION()
-	int32 GetGrenadeCount() const {return GrenadeCount;}
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiCastVisualizeCurrentWeapon();
 
-	UFUNCTION()
-	void SetGrenadeCountUp() {GrenadeCount += FMath::RandRange(1,5);}
-	*/
+	FTimerHandle MultiCastVisualizeWeaponInSlotDelay; 
 
-	UFUNCTION()
-	int32 GetKillScore() const {return KillScore;}
+	UFUNCTION(BlueprintCallable)
+	ADemoFPSPlayerState* GetMyPlayerState() const
+	{
+		return MyPlayerState;	
+	}
 
-	UFUNCTION()
-	int32 GetCurrentHP() const {return CurrentHP;}
+	UFUNCTION(BlueprintCallable)
+	void SetMyPlayerState(ADemoFPSPlayerState* NewPlayerState)
+	{
+		MyPlayerState = NewPlayerState;
+	}
 
-	UFUNCTION()
-	void AddCurrentHP(int32 NewHP);
-	
-	UFUNCTION()
-	void AddDamage(int32 NewDamage);
-
-	UFUNCTION()
-	void AddKillScore(int32 NewKillScore) {KillScore += NewKillScore; UE_LOG(LogTemp, Warning, TEXT("Kill Score Up"));}
-
-protected:
-	
-	/** Fires a projectile. */
 	UFUNCTION(BlueprintCallable)
 	void OnFireWeapon();
 
-	/** Handles moving forward/backward */
 	UFUNCTION()
 	void MoveForward(float Val);
 
-	/** Handles stafing movement, left and right */
 	UFUNCTION()
 	void MoveRight(float Val);
 
 	UFUNCTION(BlueprintCallable)
 	void ReloadWeapon();
 
+	UFUNCTION(Server, Reliable)
+	void ServerEquipSlotX(uint8 SlotNum);
+	
 	UFUNCTION(BlueprintCallable)
 	void EquipSlot1();
 
@@ -182,10 +160,26 @@ protected:
 
 	UFUNCTION(BlueprintCallable)
 	void OnBombKeyPressed();
-	
-	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
 
-public:
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerSpawnBomb(const FVector& SpawnLocation, const FRotator& SpawnRotation);
+
+	UFUNCTION(Server, Reliable)
+	void ServerPlayFireAnim();
+
+	UFUNCTION(Client, Reliable)
+	void PlayHitAnim3P();
+
+	UFUNCTION(Server, Reliable)
+	void ServerPlayHitAnim3P();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiCastPlayHitAnim3P();
+
+	
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiCastPlayFireAnim();
 
 	UFUNCTION(BlueprintCallable)
 	USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
@@ -196,4 +190,6 @@ public:
 	UFUNCTION(BlueprintCallable)
 	UAmmunitionComp* GetAmmunitionComp() const {return AmmunitionBag;}
 };
+
+
 

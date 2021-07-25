@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DemoFPSHUD.h"
-
 #include "AmmunitionComp.h"
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
@@ -9,9 +8,11 @@
 #include "Engine/Texture2D.h"
 #include "UObject/ConstructorHelpers.h"
 #include "DemoFPSCharacter.h"
-#include "DemoFPSGameMode.h"
+#include "DemoFPSPlayerState.h"
+#include "DemoFPSGameState.h"
 #include "Weapon.h"
 #include "Kismet/GameplayStatics.h"
+#undef DrawText
 
 ADemoFPSHUD::ADemoFPSHUD()
 {
@@ -20,54 +21,63 @@ ADemoFPSHUD::ADemoFPSHUD()
 
 	static ConstructorHelpers::FObjectFinder<UFont> NewFont(TEXT("/Game/Font/NewFont.NewFont"));
 	if(NewFont.Succeeded()) HudFont = NewFont.Object;
-
-	bGameOver = false;
-
 }
-
-void ADemoFPSHUD::PostInitializeComponents()
-{
-	Super::PostInitializeComponents();
-	
-	ADemoFPSGameMode* MyGameMode = Cast<ADemoFPSGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
-	MyGameMode->OnGameOver.BindUObject(this, &ADemoFPSHUD::SetGameOver);
-}
-
 
 void ADemoFPSHUD::DrawHUD()
 {
 	Super::DrawHUD();
 
+	UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		return;
+	}
+
+	ADemoFPSGameState* GameState = World->GetGameState<ADemoFPSGameState>();
+	if (!IsValid(GameState))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No gamestate loaded"));
+		return;
+	}
+
 	const FVector2D Center(Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f);
 
-	ADemoFPSCharacter* MyCharacter = Cast<ADemoFPSCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
-	ADemoFPSGameMode* MyGameMode = Cast<ADemoFPSGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+	if (!IsValid(PC))
+	{
+		return;
+	}
+	
+	ADemoFPSPlayerState* MyPlayerState = PC->GetPlayerState<ADemoFPSPlayerState>();
+	if (!IsValid(MyPlayerState))
+	{
+		return;
+	}
+	ADemoFPSCharacter* MyCharacter = PC->GetPawn<ADemoFPSCharacter>();
 
-	if (bGameOver)
+	
+	if (GameState->GetIsGameOver())
 	{
 		const FString GameOver = FString::Printf(TEXT("Game Over"));
 		DrawText(GameOver, FColor::Turquoise, Center.X-100, Center.Y-50, HudFont, 2, false);
 
-		const FString KillScore = FString::Printf(TEXT("Kill Score : %d"), MyCharacter->GetKillScore());
+		const FString KillScore = FString::Printf(TEXT("Kill Score : %d"), MyPlayerState->GetKillScore());
 		DrawText(KillScore, FColor::Yellow, Center.X-50, Center.Y+50, HudFont);
-
+		
 		const FString Reset = FString::Printf(TEXT("Press P to Restart"));
 		DrawText(Reset, FColor::White, Center.X, Canvas->ClipY-120, HudFont, 1, false);
 
 		return;
 	}
 
-	if (IsValid(MyGameMode))
-	{
-		const FString RunTimeCheck = FString::Printf(TEXT("Remaining time : %.2f"), MyGameMode->GetRemainingTime());
-		DrawText(RunTimeCheck, FColor::Red, Center.X-200, Center.Y-Canvas->ClipY*0.45f, HudFont);
-	}
+	const FString RemainingTimeCheck = FString::Printf(TEXT("Remaining time : %.2f"), GameState->GetRemainingTime());
+	DrawText(RemainingTimeCheck, FColor::Red, Center.X-200, Center.Y-Canvas->ClipY*0.45f, HudFont);
 
+	const FString KillScore = FString::Printf(TEXT("Kill Score : %d"), MyPlayerState->GetKillScore());
+	DrawText(KillScore, FColor::Yellow, Center.X + 100, Center.Y-Canvas->ClipY*0.45f, HudFont);
+	
 	if (IsValid(MyCharacter))
 	{
-		const FString KillScore = FString::Printf(TEXT("Kill Score : %d"), MyCharacter->GetKillScore());
-		DrawText(KillScore, FColor::Yellow, Center.X + 100, Center.Y-Canvas->ClipY*0.45f, HudFont);
-
 		AWeapon* MyWeapon = MyCharacter->GetCurrentWeapon();
 		if (IsValid(MyWeapon))
 		{
@@ -85,7 +95,7 @@ void ADemoFPSHUD::DrawHUD()
 			}
 		}
 		
-		const FString HP = FString::Printf(TEXT("HP : %d"), MyCharacter->GetCurrentHP());
+		const FString HP = FString::Printf(TEXT("HP : %d"), MyPlayerState->GetCurrentHP());
 		DrawText(HP, FColor::Orange, Canvas->OrgX+50, Canvas->ClipY-75, HudFont);
 	}
 

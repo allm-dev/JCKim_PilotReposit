@@ -52,15 +52,14 @@ public:
 	UFUNCTION()
 	void OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult);
 
-	UFUNCTION(BlueprintCallable)
-	void SetItemType(EItemType NewItemType) {ItemType = NewItemType;}
+	void GenerateRandAmmoRoot(int32 WeaponAmmoId, int32 Min, int32 Max, ADemoFPSCharacter* Receiver) const;
 
-	AWeapon* GenerateWeaponRoot(EItemType NewItemType);
+	void GenerateRandGrenadeRoot(int32 Min, int32 Max, ADemoFPSCharacter* Receiver) const;
 
-	void GenerateRandAmmoRoot(int32 WeaponAmmoId, int32 Min, int32 Max, ADemoFPSCharacter* Receiver);
-
-	void GenerateRandGrenadeRoot(int32 Min, int32 Max, ADemoFPSCharacter* Receiver);
+	void ExecuteImmediateHeal(uint8 HealAmount, ADemoFPSCharacter* Receiver) const;
 };
+
+
 
 
 

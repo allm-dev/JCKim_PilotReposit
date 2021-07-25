@@ -5,9 +5,14 @@
 
 UDemoFPSGameInstance::UDemoFPSGameInstance()
 {
-	for (int i =0; i<EWeaponRootClassKey::WeaponRootClassKeyEnd; i++)
+	for (int i = 0; i < EWeaponRootClassKey::WeaponRootClassKeyEnd; i++)
 	{
-		ItemRootClass.Add(static_cast<EWeaponRootClassKey>(i), nullptr);
+		WeaponRootClass.Add(static_cast<EWeaponRootClassKey>(i), nullptr);
+	}
+
+	for (int i = 0; i < EWeaponClassKey::WeaponClassEnd; i++)
+	{
+		WeaponClass.Add(static_cast<EWeaponClassKey>(i), nullptr);
 	}
 	
 }

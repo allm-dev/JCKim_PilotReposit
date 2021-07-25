@@ -3,8 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-#include "ItemRoot.h"
 #include "Engine/GameInstance.h"
 #include "DemoFPSGameInstance.generated.h"
 
@@ -17,6 +15,18 @@ enum EWeaponRootClassKey
 	WeaponRootClassKeyEnd
 };
 
+UENUM(Blueprintable)
+enum EWeaponClassKey
+{
+	WeaponClass1 = 0,
+	WeaponClass2,
+	WeaponClass3,
+	WeaponClassEnd
+};
+
+class AItemRoot;
+class AWeapon;
+
 UCLASS()
 class DEMOFPS_API UDemoFPSGameInstance : public UGameInstance
 {
@@ -26,8 +36,15 @@ public:
 	
 	UDemoFPSGameInstance();
 
-	UPROPERTY(EditDefaultsOnly, Category=ItemRootClass)
-	TMap<TEnumAsByte<EWeaponRootClassKey>, TSubclassOf<AItemRoot>> ItemRootClass;
+	UPROPERTY(EditDefaultsOnly, Category=WeaponRootClass)
+	TMap<TEnumAsByte<EWeaponRootClassKey>, TSubclassOf<AItemRoot>> WeaponRootClass;
 
-	TMap<TEnumAsByte<EWeaponRootClassKey>, TSubclassOf<AItemRoot>> GetItemRootClass() const {return ItemRootClass;}
+	UPROPERTY(EditDefaultsOnly, Category=WeaponClass)
+	TMap<TEnumAsByte<EWeaponClassKey>, TSubclassOf<AWeapon>> WeaponClass;
+
+	UFUNCTION(BlueprintCallable)
+	TMap<TEnumAsByte<EWeaponRootClassKey>, TSubclassOf<AItemRoot>> GetWeaponRootClass() const {return WeaponRootClass;}
+
+	UFUNCTION(BlueprintCallable)
+	TMap<TEnumAsByte<EWeaponClassKey>, TSubclassOf<AWeapon>> GetWeaponClass() const {return WeaponClass;}
 };

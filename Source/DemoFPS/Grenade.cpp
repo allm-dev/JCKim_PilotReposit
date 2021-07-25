@@ -3,7 +3,7 @@
 
 #include "Grenade.h"
 #include "DemoFPSCharacter.h"
-#include "EnvironmentQuery/EnvQueryTypes.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 AGrenade::AGrenade()
@@ -66,9 +66,30 @@ AGrenade::AGrenade()
 	ExplosionEffect->SetupAttachment(RootComponent);
 
 	ExplosionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	InitialLifeSpan = 3.0f;
+	
+	bReplicates = true;
 }
 
-void AGrenade::OnExplosion(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
+
+void AGrenade::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+}
+
+void AGrenade::OnExplosion(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if(!HasAuthority())
+	{
+		return;
+	}
+	
+	ServerOnExplosion(OtherActor);
+}
+
+
+void AGrenade::ServerOnExplosion_Implementation(AActor* OtherActor)
 {
 	ADemoFPSCharacter* DownCastedActor = Cast<ADemoFPSCharacter>(OtherActor);
 	if (DownCastedActor == nullptr)
@@ -87,33 +108,91 @@ void AGrenade::OnExplosion(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 	BlowDir.Normalize();
 	DownCastedActor->GetCapsuleComponent()->AddImpulse(BlowDir *1000.0f, NAME_None, true);
 	
-	//OtherActor->SetLifeSpan(0.5f);
-	OnGrenadeKill.Execute(1);
+	DownCastedActor->SetLifeSpan(0.5f);
+
+	if (DownCastedActor == GetOwner<ADemoFPSCharacter>())
+	{
+		return;
+	}
+	
+	if (OnGrenadeKill.ExecuteIfBound(1) == true)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Grenade Kill Report Successful"));
+	}
+
 }
 
-
-// Called when the game starts or when spawned
-void AGrenade::BeginPlay()
-{
-	Super::BeginPlay();
-	SetLifeSpan(3.0f);
-}
 
 void AGrenade::LifeSpanExpired()
 {
-	DefaultEffect->SetActive(false);
-	ExplosionEffect->Activate();
+	if (!HasAuthority())
+	{
+		return;
+	}
+	
+	ServerLifeSpanExpired();
 }
 
+
+void AGrenade::ServerLifeSpanExpired_Implementation()
+{
+	MultiCastLifeSpanExpired();
+}
+
+void AGrenade::MultiCastLifeSpanExpired_Implementation()
+{
+	DefaultEffect->Deactivate();
+	ExplosionEffect->Activate();
+	Mesh->SetVisibility(false);
+}
 
 void AGrenade::OnExplosionStart(UActorComponent* Component, bool bReset)
 {
-	Mesh->SetVisibility(false);
-	ExplosionSphere->SetSphereRadius(300.0f);
-	ExplosionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	if (!HasAuthority())
+	{
+		return;
+	}
+	
+	ServerOnExplosionStart();
 }
 
-inline void AGrenade::OnExplosionEnd(UParticleSystemComponent* PS)
+void AGrenade::ServerOnExplosionStart_Implementation()
 {
+	UE_LOG(LogTemp, Warning, TEXT("Server grenade explosion starts"));
+	ExplosionSphere->SetSphereRadius(300.0f);
+	ExplosionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+
+	MultiCastOnExplosionStart();
+}
+
+void AGrenade::MultiCastOnExplosionStart_Implementation()
+{
+	GetWorldTimerManager().SetTimer(CustomTimerHandle, this, &AGrenade::CustomTimerDelayedDestroy, 0.2f);
+}
+
+
+void AGrenade::CustomTimerDelayedDestroy()
+{
+	GetWorldTimerManager().ClearTimer(CustomTimerHandle);
+	UE_LOG(LogTemp, Warning, TEXT("Destroying Grenade Explosion Component"));
+	ExplosionSphere->DestroyComponent();	
+}
+
+
+void AGrenade::OnExplosionEnd(UParticleSystemComponent* PS)
+{
+	ServerOnExplosionEnd();
+}
+
+void AGrenade::ServerOnExplosionEnd_Implementation()
+{
+	MultiCastOnExplosionEnd();
+}
+
+void AGrenade::MultiCastOnExplosionEnd_Implementation()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Grenade has destroyed"));
 	Destroy();
 }
+
+

@@ -6,7 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "DemoFPSProjectile.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_OneParam(OnGSWKillDelegate, int32);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGunShotKillDelegate, uint8, ScoreAmount);
 
 class USphereComponent;
 class UProjectileMovementComponent;
@@ -23,11 +23,15 @@ class ADemoFPSProjectile : public AActor
 	UProjectileMovementComponent* ProjectileMovement;
 	
 	UPROPERTY(EditDefaultsOnly, Category = Damage, meta = (AllowPrivateAccess = true))
-	int32 Damage;
+	uint8 Damage;
 
 
 public:
 	ADemoFPSProjectile();
+
+	virtual void PostInitializeComponents() override;
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION()
 	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
@@ -38,6 +42,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	UProjectileMovementComponent* GetProjectileMovement() const { return ProjectileMovement; }
 
-	OnGSWKillDelegate OnGSWKill;
+	//OnGSWKillDelegate OnGSWKill;
+	UPROPERTY(BlueprintAssignable)
+	FOnGunShotKillDelegate OnGunShotKill;
 };
 

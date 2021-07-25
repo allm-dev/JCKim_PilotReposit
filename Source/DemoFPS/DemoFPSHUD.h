@@ -6,8 +6,6 @@
 #include "GameFramework/HUD.h"
 #include "DemoFPSHUD.generated.h"
 
-
-
 UCLASS()
 class ADemoFPSHUD : public AHUD
 {
@@ -17,20 +15,8 @@ public:
 	ADemoFPSHUD();
 
 	UFUNCTION()
-	virtual void PostInitializeComponents() override;
-
-	UFUNCTION()
 	virtual void DrawHUD() override;
 
-	UFUNCTION()
-	void SetGameOver(bool b)
-	{
-		bGameOver = b;
-	}
-
-	UFUNCTION()
-	bool GetGameOver() const { return bGameOver; }
-	
 private:
 	
 	UPROPERTY()
@@ -38,9 +24,6 @@ private:
 
 	UPROPERTY()
 	UFont* HudFont;
-
-	UPROPERTY()
-	bool bGameOver;
 
 };
 

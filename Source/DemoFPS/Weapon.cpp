@@ -4,7 +4,8 @@
 #include "Weapon.h"
 #include "DemoFPSProjectile.h"
 #include "DemoFPSCharacter.h"
-
+#include "DemoFPSPlayerState.h"
+#include "Net/UnrealNetwork.h"
 
 
 // Sets default values
@@ -24,9 +25,17 @@ AWeapon::AWeapon()
 	
 	MaxAmmo =30;
 	CurrentAmmo = MaxAmmo;
+
+	GunOwner = nullptr;
+	bReplicates = true;
+	bAlwaysRelevant = true;
 }
 
-
+void AWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AWeapon, GunOwner);
+}
 
 bool AWeapon::FireGun()
 {
@@ -39,25 +48,59 @@ bool AWeapon::FireGun()
 	{
 		return false;
 	}
-	
-	UWorld* const World = GetWorld();
-	if (World == nullptr)
-	{
-		return false;
-	}
-	
-	ADemoFPSCharacter* GunOwner = Cast<ADemoFPSCharacter>(GetOwner());
-	if (GunOwner == nullptr)
-	{
-		return false;
-	}
-	
-	GunOwner->AddControllerPitchInput(FMath::RandRange(-1.50f, 0.00f));
-	GunOwner->AddControllerYawInput(FMath::RandRange(-1.00f, 1.00f));
 
-	const FRotator SpawnRotation = GunOwner->GetControlRotation();
+	ADemoFPSCharacter* PlayerPawn = GetOwner<ADemoFPSCharacter>();
+	if (!IsValid(PlayerPawn))
+	{
+		return false;
+	}
+
+	const FRotator SpawnRotation = PlayerPawn->GetControlRotation();
 	const FVector SpawnLocation = Muzzle->GetComponentLocation();
 
+	ServerFireGun(SpawnLocation, SpawnRotation);
+	
+	CurrentAmmo--;
+
+	return true;
+}
+
+
+bool AWeapon::ServerFireGun_Validate(const FVector& SpawnLocation, const FRotator& SpawnRotation)
+{
+	if(SpawnLocation == FVector(ForceInit) || SpawnRotation == FRotator(ForceInit))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Wrong Spawn Point Coordination Assigned"));
+		return false;
+	}
+	
+	return true;
+}
+
+
+void AWeapon::ServerFireGun_Implementation(const FVector& SpawnLocation, const FRotator& SpawnRotation)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Executing ServerFireGun"))
+	SpawnBullet(SpawnLocation, SpawnRotation);
+	MultiCastFireGun();
+}
+
+void AWeapon::SpawnBullet(const FVector& SpawnLocation, const FRotator& SpawnRotation)
+{
+	UWorld* const World = GetWorld();
+	if (!IsValid(World))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No World Found on Server"))
+		return;
+	}
+	
+	GunOwner = GetOwner<ADemoFPSCharacter>();
+	if (!IsValid(GunOwner))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No GunOwner on Server"))
+		return;
+	}
+	
 	FActorSpawnParameters ActorSpawnParams;
 	ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 	ActorSpawnParams.Owner = GunOwner;
@@ -65,13 +108,29 @@ bool AWeapon::FireGun()
 	ADemoFPSProjectile* Projectile = World->SpawnActor<ADemoFPSProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
 	if (!IsValid(Projectile))
 	{
-		return false;
+		UE_LOG(LogTemp, Warning, TEXT("Failed Spawning bullet on Server"))
+		return;
 	}
 
-	Projectile->OnGSWKill.AddUObject(GunOwner, &ADemoFPSCharacter::AddKillScore);
-	CurrentAmmo--;
+	ADemoFPSPlayerState* MyPlayerState = GunOwner->GetMyPlayerState();
+	check(IsValid(MyPlayerState))
+	if (IsValid(MyPlayerState))
+	{
+		Projectile->OnGunShotKill.AddDynamic(MyPlayerState,&ADemoFPSPlayerState::AddKillScore);
+	}
+}
 
-	return true;
+void AWeapon::MultiCastFireGun_Implementation()
+{
+	GunOwner = GetOwner<ADemoFPSCharacter>();
+	if (!IsValid(GunOwner))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No GunOwner on Client"))
+		return;
+	}
+	
+	GunOwner->AddControllerPitchInput(FMath::RandRange(-1.50f, 0.00f));
+	GunOwner->AddControllerYawInput(FMath::RandRange(-1.00f, 1.00f));
 }
 
 bool AWeapon::Reload(int32 NewAmmo)

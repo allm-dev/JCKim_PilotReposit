@@ -2,11 +2,10 @@
 
 
 #include "ItemRoot.h"
-
 #include "AmmunitionComp.h"
-#include "Weapon.h"
 #include "DemoFPSCharacter.h"
-#include "EnvironmentQuery/EnvQueryTypes.h"
+#include "DemoFPSGameInstance.h"
+#include "DemoFPSPlayerState.h"
 
 // Sets default values
 AItemRoot::AItemRoot()
@@ -29,6 +28,8 @@ AItemRoot::AItemRoot()
 	{
 		ItemPathFinder.Add(static_cast<EItemType>(i), nullptr);
 	}
+
+	bReplicates = true;
 }
 
 void AItemRoot::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -42,13 +43,13 @@ void AItemRoot::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
 		switch (ItemType)
 		{
 		case EItemType::Weapon0:
-			OtherCharacter->SetWeaponInSlot(GenerateWeaponRoot(Weapon0));
+			OtherCharacter->SetWeaponInSlot(EWeaponClassKey::WeaponClass1);
 			break;
 		case EItemType::Weapon1:
-			OtherCharacter->SetWeaponInSlot(GenerateWeaponRoot(Weapon1));
+			OtherCharacter->SetWeaponInSlot(EWeaponClassKey::WeaponClass2);
 			break;
 		case EItemType::Weapon2:
-			OtherCharacter->SetWeaponInSlot(GenerateWeaponRoot(Weapon2));
+			OtherCharacter->SetWeaponInSlot(EWeaponClassKey::WeaponClass3);
 			break;
 		case EItemType::Ammo0:
 			GenerateRandAmmoRoot(0, 20, 40, OtherCharacter);
@@ -63,10 +64,10 @@ void AItemRoot::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
 			GenerateRandGrenadeRoot(3,6, OtherCharacter);
 			break;
 		case EItemType::HealPackSmall:
-			OtherCharacter->AddCurrentHP(50);
+			ExecuteImmediateHeal(50, OtherCharacter);
 			break;
 		case EItemType::HealPackHuge:
-			OtherCharacter->AddCurrentHP(100);
+			ExecuteImmediateHeal(100, OtherCharacter);
 			break;
 		default:
 			UE_LOG(LogTemp, Warning, TEXT("Invalid Item Type to Spawn"));
@@ -77,32 +78,12 @@ void AItemRoot::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
 	}
 }
 
-AWeapon* AItemRoot::GenerateWeaponRoot(EItemType NewItemType)
+void AItemRoot::GenerateRandAmmoRoot(int32 WeaponAmmoId, int32 Min, int32 Max, ADemoFPSCharacter* Receiver) const
 {
-	if (!ItemPathFinder.Contains(NewItemType))
+	if (!IsValid(Receiver))
 	{
-		return nullptr;
+		return;
 	}
-	
-	UClass* NewWeaponClass = ItemPathFinder[NewItemType];
-	if (NewWeaponClass == nullptr)
-	{
-		return  nullptr;
-	}
-	
-	AWeapon* NewWeapon = GetWorld()->SpawnActor<AWeapon>(NewWeaponClass);
-	if (IsValid(NewWeapon))
-	{
-		return NewWeapon;
-	}
-	else
-	{
-		return nullptr;
-	}
-}
-
-void AItemRoot::GenerateRandAmmoRoot(int32 WeaponAmmoId, int32 Min, int32 Max, ADemoFPSCharacter* Receiver)
-{
 	UAmmunitionComp* AmmunitionBag = Receiver->GetAmmunitionComp();
 
 	if (AmmunitionBag != nullptr)
@@ -111,12 +92,30 @@ void AItemRoot::GenerateRandAmmoRoot(int32 WeaponAmmoId, int32 Min, int32 Max, A
 	}
 }
 
-void AItemRoot::GenerateRandGrenadeRoot(int32 Min, int32 Max, ADemoFPSCharacter* Receiver)
+void AItemRoot::GenerateRandGrenadeRoot(int32 Min, int32 Max, ADemoFPSCharacter* Receiver) const
 {
+	if (!IsValid(Receiver))
+	{
+		return;
+	}
 	UAmmunitionComp* AmmunitionBag = Receiver->GetAmmunitionComp();
 
 	if (AmmunitionBag != nullptr)
 	{
 		AmmunitionBag->AddCurrentGrenadeCount(FMath::RandRange(Min, Max));
+	}
+}
+
+void AItemRoot::ExecuteImmediateHeal(uint8 HealAmount, ADemoFPSCharacter* Receiver) const
+{
+	if (!IsValid(Receiver))
+	{
+		return;
+	}
+	ADemoFPSPlayerState* MyplayerState = Receiver->GetMyPlayerState();
+
+	if(IsValid(MyplayerState))
+	{
+		MyplayerState->AddCurrentHP(HealAmount);
 	}
 }

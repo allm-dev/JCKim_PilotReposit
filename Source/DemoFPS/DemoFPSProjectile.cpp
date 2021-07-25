@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DemoFPSProjectile.h"
-
 #include "DemoFPSCharacter.h"
+#include "DemoFPSPlayerState.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/SphereComponent.h"
 
@@ -33,6 +33,18 @@ ADemoFPSProjectile::ADemoFPSProjectile()
 
 	// Die after 3 seconds by default
 	InitialLifeSpan = 3.0f;
+	bReplicates = true;
+}
+
+void ADemoFPSProjectile::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	SetReplicateMovement(true);
+}
+
+void ADemoFPSProjectile::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 }
 
 void ADemoFPSProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
@@ -45,19 +57,17 @@ void ADemoFPSProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor,
 	ADemoFPSCharacter* DownCastedActor = Cast<ADemoFPSCharacter>(OtherActor);
 	if (DownCastedActor != nullptr)
 	{
-		DownCastedActor->AddDamage(Damage);
+		ADemoFPSPlayerState* MyPlayerState = DownCastedActor->GetMyPlayerState();
+		if (!IsValid(MyPlayerState))
+		{
+			return;
+		}
+		MyPlayerState->LoseCurrentHP(Damage);
+		DownCastedActor->ServerPlayHitAnim3P();
 
 		if (!IsValid(DownCastedActor))
 		{
-			/*
-			ADemoFPSCharacter* Killer =  Cast<ADemoFPSCharacter>(GetOwner());
-			if(IsValid(Killer))
-			{
-				UE_LOG(LogTemp, Warning, TEXT("GunShot Kill %s"), *OtherCharacterName);
-				Killer->AddKillScore(1);
-			}
-			*/
-			OnGSWKill.Broadcast(1);
+			OnGunShotKill.Broadcast(1);
 		}
 		
 		Destroy();
